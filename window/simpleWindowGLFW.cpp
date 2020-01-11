@@ -34,8 +34,8 @@ int main(int argc, char* argv[]) {
     auto pPrimaryMonitor = glfwGetPrimaryMonitor();
     glfwGetMonitorWorkarea(pPrimaryMonitor, &x, &y, &w, &h);
 
-    width  = std::min(args.value().first, w);
-    height = std::min(args.value().second, h);
+    width  = std::min(args.value().first, w-x);
+    height = std::min(args.value().second, h-y);
   }
 
   constexpr std::string_view sWindowTitle = "HelloWorld!";
