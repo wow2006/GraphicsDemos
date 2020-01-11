@@ -27,7 +27,6 @@ auto main(int argc, char *argv[]) -> int {
     return EXIT_FAILURE;
   }
 
-
   int width  = 640;
   int height = 480;
   if(const auto args = parseProgramOptions(argc, argv);

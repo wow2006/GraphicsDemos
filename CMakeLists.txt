@@ -6,4 +6,3 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 include(options)
 
 add_subdirectory(window)
-
