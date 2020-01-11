@@ -15,3 +15,9 @@ add_executable(simpleWindowSFML simpleWindowSFML.cpp)
 
 target_link_libraries(simpleWindowSFML PRIVATE sfml-window options::options)
 
+if(UNIX)
+  find_package(X11 REQUIRED)
+
+  add_executable(simpleWindowX11 simpleWindowX11.cpp)
+  target_link_libraries(simpleWindowX11 PRIVATE 	X11::X11 options::options)
+endif()
