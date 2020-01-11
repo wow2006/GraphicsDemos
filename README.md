@@ -1,2 +1,5 @@
 # GraphicsDemos
-Collection of simple graphics demos 
+Collection of simple graphics demos
+
+- [Window Creation](window)
+
