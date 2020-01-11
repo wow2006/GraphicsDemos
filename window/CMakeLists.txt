@@ -21,3 +21,8 @@ if(UNIX)
   add_executable(simpleWindowX11 simpleWindowX11.cpp)
   target_link_libraries(simpleWindowX11 PRIVATE 	X11::X11 options::options)
 endif()
+
+if(WIN32)
+  add_executable(simpleWindowWin32 WIN32 simpleWindowWin32.cpp)
+  target_link_libraries(simpleWindowWin32 PRIVATE options::options)
+endif()
