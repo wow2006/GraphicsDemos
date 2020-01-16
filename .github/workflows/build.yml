@@ -6,8 +6,8 @@ jobs:
     name: GCC Release
     runs-on: ubuntu-latest
     steps:
-      - name: PWD
-        run: pwd
+      - name: wget
+        run: wget https://raw.githubusercontent.com/wow2006/GraphicsDemos/actions/Dockerfile && wget https://raw.githubusercontent.com/wow2006/GraphicsDemos/actions/remove-cmake.patch
       - name: List
         run: ls
       - name: Build Docker
