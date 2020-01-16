@@ -14,3 +14,40 @@ jobs:
         run: docker build -t test .
       - name: Build code
         run: docker run test:latest
+  gcc-debug:
+    name: GCC Debug
+    runs-on: ubuntu-latest
+    steps:
+      - name: wget
+        run: wget https://raw.githubusercontent.com/wow2006/GraphicsDemos/actions/Dockerfile && wget https://raw.githubusercontent.com/wow2006/GraphicsDemos/actions/remove-cmake.patch
+      - name: List
+        run: ls
+      - name: Build Docker
+        run: docker build -t test --build-arg BUILD=Debug .
+      - name: Build code
+        run: docker run test:latest
+  clang-release:
+    name: GCC Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: wget
+        run: wget https://raw.githubusercontent.com/wow2006/GraphicsDemos/actions/Dockerfile && wget https://raw.githubusercontent.com/wow2006/GraphicsDemos/actions/remove-cmake.patch
+      - name: List
+        run: ls
+      - name: Build Docker
+        run: docker build -t test --build-arg COMPILER=clang++ .
+      - name: Build code
+        run: docker run test:latest
+  gcc-debug:
+    name: CLang Debug
+    runs-on: ubuntu-latest
+    steps:
+      - name: wget
+        run: wget https://raw.githubusercontent.com/wow2006/GraphicsDemos/actions/Dockerfile && wget https://raw.githubusercontent.com/wow2006/GraphicsDemos/actions/remove-cmake.patch
+      - name: List
+        run: ls
+      - name: Build Docker
+        run: docker build -t test --build-arg COMPILER=clang++ BUILD=Debug .
+      - name: Build code
+        run: docker run test:latest
+
