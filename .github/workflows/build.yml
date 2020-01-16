@@ -47,7 +47,7 @@ jobs:
       - name: List
         run: ls
       - name: Build Docker
-        run: docker build -t test --build-arg COMPILER=clang++ BUILD=Debug .
+        run: docker build -t test --build-arg COMPILER=clang++ --build-arg BUILD=Debug .
       - name: Build code
         run: docker run test:latest
 
