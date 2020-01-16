@@ -27,7 +27,7 @@ jobs:
       - name: Build code
         run: docker run test:latest
   clang-release:
-    name: GCC Release
+    name: CLang Release
     runs-on: ubuntu-latest
     steps:
       - name: wget
@@ -38,7 +38,7 @@ jobs:
         run: docker build -t test --build-arg COMPILER=clang++ .
       - name: Build code
         run: docker run test:latest
-  gcc-debug:
+  clang-debug:
     name: CLang Debug
     runs-on: ubuntu-latest
     steps:
