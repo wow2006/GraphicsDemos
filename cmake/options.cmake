@@ -16,7 +16,8 @@ target_compile_options(
   options
   INTERFACE
     $<$<CXX_COMPILER_ID:Clang>:-Weverything;-Wno-c++98-compat-pedantic;-fcolor-diagnostics;-Wno-unused-macros>
-    $<$<CXX_COMPILER_ID:GNU>:-Wall;-W;-Wpedantic;-Wshadow;-Wnon-virtual-dtor;-Wold-style-cast;-Wunused;-Wformat=2>
-    $<$<CXX_COMPILER_ID:MSVC>:/W3;/permissive-;/bigobj>)
+    $<$<CXX_COMPILER_ID:GNU>:-Wall;-W;-Wpedantic;-Wshadow;-Wnon-virtual-dtor;-Wold-style-cast;-Wunused;-Wformat=2;-fdiagnostics-color=always>
+    $<$<CXX_COMPILER_ID:MSVC>:/W3;/permissive->
+)
 
-target_link_libraries(options INTERFACE $<$<CXX_COMPILER_ID:Linux>:stdc++fs>)
+target_link_libraries(options INTERFACE $<$<PLATFORM_ID:Linux>:stdc++fs>)
