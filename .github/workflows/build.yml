@@ -7,7 +7,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: PWD
-        run: pwd && ls
+        run: pwd
+      - name: List
+        run: ls
       - name: Build Docker
         run: docker build -t test .
       - name: Build code
