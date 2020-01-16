@@ -6,7 +6,9 @@ jobs:
     name: GCC Release
     runs-on: ubuntu-latest
     steps:
+      - name: PWD
+        run: pwd && ls
       - name: Build Docker
-        run: pwd && ls && docker build -t test .
+        run: docker build -t test .
       - name: Build code
         run: docker run test:latest
