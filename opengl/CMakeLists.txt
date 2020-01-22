@@ -4,6 +4,18 @@ set(OpenGL_GL_PREFERENCE "GLVND")
 find_package(OpenGL REQUIRED)
 find_package(gl3w   REQUIRED)
 
+if(UNIX)
+  find_package(X11 REQUIRED)
+
+  add_executable(fixedPipelineOpenGLX11 fixedPipelineOpenGLX11.cpp)
+
+  target_link_libraries(fixedPipelineOpenGLX11 PRIVATE X11::X11 OpenGL::GL options::options)
+
+  add_executable(programmablePipelineX11 programmablePipelineX11.cpp)
+
+  target_link_libraries(programmablePipelineX11 PRIVATE X11::X11 OpenGL::GL options::options)
+endif()
+
 add_executable(fixedPipelineOpenGLSDL fixedPipelineOpenGLSDL.cpp)
 
 target_link_libraries(fixedPipelineOpenGLSDL PRIVATE OpenGL::GL SDL2::SDL2 options::options)
