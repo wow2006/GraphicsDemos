@@ -34,5 +34,7 @@ void FPSCamera::lift(float deltaTime) {
   mDeltas.z += (g_fSpeed * deltaTime);
 }
 
-void FPSCamera::update() {
-}
+void FPSCamera::update() {}
+
+glm::mat4 FPSCamera::view() const { return glm::mat4{}; }
+

@@ -7,4 +7,5 @@ include(options)
 
 #add_subdirectory(window)
 add_subdirectory(opengl)
+add_subdirectory(cameras)
 
