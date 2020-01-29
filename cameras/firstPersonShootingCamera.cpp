@@ -100,15 +100,100 @@ auto main(int argc, char *argv[]) -> int {
     glDebugMessageCallback(DebugCallback, nullptr);
   }
 
+  GLuint vao = 0;
+  std::array<GLuint, 4> vbo;
+  {
+    std::array<float, 12 * 3> verties {
+      // Quad
+      -10.F, 0, 10.F, // 0
+       10.F, 0, 10.F, // 1
+       10.F, 0,-10.F, // 2
+      -10.F, 0,-10.F, // 3
+      // Cube
+      -1.F,   0, 1.F, // 4
+       1.F,   0, 1.F, // 5
+       1.F, 2.F, 1.F, // 6
+      -1.F, 2.F, 1.F, // 7
+       1.F,   0,-1.F, // 8
+       1.F,   2,-1.F, // 9
+      -1.F,   0,-1.F, // 10
+      -1.F,   2,-1.F, // 11
+    };
+    std::array<float, 12 * 2> uvcoords {
+      // Quad
+      0, 0,
+      1, 0,
+      1, 1,
+      0, 1,
+      // Cube
+      // Front side (0)
+      0, 0,
+      1, 0,
+      1, 1,
+      0, 1
+    };
+    std::array<float, 12 * 3> normals {
+      // Quad
+      0, 1, 0,
+      0, 1, 0,
+      0, 1, 0,
+      0, 1, 0,
+      // Cube
+      // Front side (0)
+      0, 0,-1,
+      0, 0,-1,
+      0, 0,-1,
+      0, 0,-1,
+    };
+    std::array<uint16_t,  6 * 5> indices = {
+      0,  1,  2,  0,  2,  3,
+      4,  5,  6,  4,  6,  7,
+      5,  8,  9,  5,  9,  6,
+      8,  10, 11, 8,  11, 9,
+      10, 4,  7,  10, 7,  11
+    };
+
+    glGenVertexArrays(1, &vao);
+    glGenBuffers(vbo.size(), vbo.data());
+    glBindVertexArray(vao);
+    {
+      glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+      glBufferData(GL_ARRAY_BUFFER, sizeof(float) * verties.size(), verties.data(), GL_STATIC_DRAW);
+      glEnableVertexAttribArray(0);
+      glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, nullptr);
+      glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+      glBufferData(GL_ARRAY_BUFFER, sizeof(float) * uvcoords.size(), uvcoords.data(), GL_STATIC_DRAW);
+      glEnableVertexAttribArray(1);
+      glVertexAttribPointer(1, 2, GL_FLOAT, false, 0, nullptr);
+      glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
+      glBufferData(GL_ARRAY_BUFFER, sizeof(float) * normals.size(), normals.data(), GL_STATIC_DRAW);
+      glEnableVertexAttribArray(2);
+      glVertexAttribPointer(2, 3, GL_FLOAT, false, 0, nullptr);
+
+      glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo[3]);
+      glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint16_t) * indices.size(), indices.data(), GL_STATIC_DRAW);
+    }
+    //glBindVertexArray(0);
+  }
+
   GLuint program;
   {
     const char *vSource = R"(
       #version 450 core
 
-      //uniform mat4 MVP;
+      layout(location=0) in vec3 position;
+      layout(location=1) in vec2 uvcoord;
+      layout(location=2) in vec3 normal;
+
+      out vec3 vNormal;
+      out vec2 vUVCoord;
+
+      uniform mat4 MVP;
 
       void main() {
-        gl_Position = /*MVP */ vec4(0, 0, 0.5, 1);
+        gl_Position = MVP * vec4(position, 1);
+        vNormal = normal;
+        vUVCoord = uvcoord;
       }
       )";
     auto vShader = glCreateShader(GL_VERTEX_SHADER);
@@ -127,10 +212,13 @@ auto main(int argc, char *argv[]) -> int {
     const char *fSource = R"(
       #version 450 core
 
+      in vec3 vNormal;
+      in vec2 vUVCoord;
+
       out layout(location = 0) vec4 oFrag;
 
       void main() {
-        oFrag = vec4(1, 0, 0, 1.0);
+        oFrag = vec4(vUVCoord, 0, 1.0);
       }
       )";
     auto fShader = glCreateShader(GL_FRAGMENT_SHADER);
@@ -190,13 +278,13 @@ auto main(int argc, char *argv[]) -> int {
     {
       glUseProgram(program);
       {
-        //static GLint viewAttribPosition = glGetUniformLocation(program, "MVP");
-        //const auto projection = glm::perspective(glm::radians(60.F), 4.F / 3.F, 0.1F, 1000.F);
-        //const auto view       = camera.view();
-        //const auto MVP        = projection * view;
-        //glUniformMatrix4fv(viewAttribPosition, 1, GL_FALSE, glm::value_ptr(MVP));
+        static GLint viewAttribPosition = glGetUniformLocation(program, "MVP");
+        const auto projection = glm::perspective(glm::radians(60.F), 4.F / 3.F, 0.1F, 1000.F);
+        const auto view       = glm::lookAt(glm::vec3(10, 10, 10), glm::vec3{}, glm::vec3(0, 1, 0));
+        const auto MVP        = projection * view;
+        glUniformMatrix4fv(viewAttribPosition, 1, GL_FALSE, glm::value_ptr(MVP));
 
-        glDrawArrays(GL_POINTS, 0, 1);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, nullptr);
       }
       glUseProgram(0);
     }
