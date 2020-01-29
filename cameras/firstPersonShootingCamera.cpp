@@ -101,56 +101,142 @@ auto main(int argc, char *argv[]) -> int {
   }
 
   GLuint vao = 0;
-  std::array<GLuint, 4> vbo;
+  std::array<GLuint, 3> vbo;
   {
-    std::array<float, 12 * 3> verties {
+    std::array<float, 42 * 3> verties {
       // Quad
       -10.F, 0, 10.F, // 0
        10.F, 0, 10.F, // 1
        10.F, 0,-10.F, // 2
+      -10.F, 0, 10.F, // 0
+       10.F, 0,-10.F, // 2
       -10.F, 0,-10.F, // 3
       // Cube
+      // Front
       -1.F,   0, 1.F, // 4
        1.F,   0, 1.F, // 5
        1.F, 2.F, 1.F, // 6
+      -1.F,   0, 1.F, // 4
+       1.F, 2.F, 1.F, // 6
       -1.F, 2.F, 1.F, // 7
+      // Right
+       1.F,   0, 1.F, // 5
        1.F,   0,-1.F, // 8
        1.F,   2,-1.F, // 9
+       1.F,   0, 1.F, // 5
+       1.F,   2,-1.F, // 9
+       1.F, 2.F, 1.F, // 6
+       // Top
+      -1.F, 2.F, 1.F, // 7
+       1.F, 2.F, 1.F, // 6
+       1.F,   2,-1.F, // 9
+      -1.F, 2.F, 1.F, // 7
+       1.F,   2,-1.F, // 9
+      -1.F,   2,-1.F, // 11
+      // Back
+       1.F,   0,-1.F, // 8
       -1.F,   0,-1.F, // 10
       -1.F,   2,-1.F, // 11
+       1.F,   0,-1.F, // 8
+      -1.F,   2,-1.F, // 11
+       1.F,   2,-1.F, // 9
+       // Left
+      -1.F,   0,-1.F, // 10
+      -1.F,   0, 1.F, // 4
+      -1.F, 2.F, 1.F, // 7
+      -1.F,   0,-1.F, // 10
+      -1.F, 2.F, 1.F, // 7
+      -1.F,   2,-1.F, // 11
     };
-    std::array<float, 12 * 2> uvcoords {
+    std::array<float, 42 * 2> uvcoords {
       // Quad
-      0, 0,
-      1, 0,
-      1, 1,
-      0, 1,
+      0, 0, // 0
+      1, 0, // 1
+      1, 1, // 2
+      0, 0, // 0
+      1, 1, // 2
+      0, 1, // 3
       // Cube
       // Front side (0)
-      0, 0,
-      1, 0,
-      1, 1,
-      0, 1
+      0, 0, // 0
+      1, 0, // 1
+      1, 1, // 2
+      0, 0, // 0
+      1, 1, // 2
+      0, 1, // 3
+      // Front side (0)
+      0, 0, // 0
+      1, 0, // 1
+      1, 1, // 2
+      0, 0, // 0
+      1, 1, // 2
+      0, 1, // 3
+      // Front side (0)
+      0, 0, // 0
+      1, 0, // 1
+      1, 1, // 2
+      0, 0, // 0
+      1, 1, // 2
+      0, 1, // 3
+      // Front side (0)
+      0, 0, // 0
+      1, 0, // 1
+      1, 1, // 2
+      0, 0, // 0
+      1, 1, // 2
+      0, 1, // 3
+      // Front side (0)
+      0, 0, // 0
+      1, 0, // 1
+      1, 1, // 2
+      0, 0, // 0
+      1, 1, // 2
+      0, 1, // 3
     };
-    std::array<float, 12 * 3> normals {
+    std::array<float, 42 * 3> normals {
       // Quad
       0, 1, 0,
       0, 1, 0,
       0, 1, 0,
       0, 1, 0,
+      0, 1, 0,
+      0, 1, 0,
       // Cube
-      // Front side (0)
+      // Front
+      0, 0, 1,
+      0, 0, 1,
+      0, 0, 1,
+      0, 0, 1,
+      0, 0, 1,
+      0, 0, 1,
+      // Right
+      1, 0, 0,
+      1, 0, 0,
+      1, 0, 0,
+      1, 0, 0,
+      1, 0, 0,
+      1, 0, 0,
+      // Top
+      0, 1, 0,
+      0, 1, 0,
+      0, 1, 0,
+      0, 1, 0,
+      0, 1, 0,
+      0, 1, 0,
+      // Back
       0, 0,-1,
       0, 0,-1,
       0, 0,-1,
       0, 0,-1,
-    };
-    std::array<uint16_t,  6 * 5> indices = {
-      0,  1,  2,  0,  2,  3,
-      4,  5,  6,  4,  6,  7,
-      5,  8,  9,  5,  9,  6,
-      8,  10, 11, 8,  11, 9,
-      10, 4,  7,  10, 7,  11
+      0, 0,-1,
+      0, 0,-1,
+      // Left
+     -1, 0, 0,
+     -1, 0, 0,
+     -1, 0, 0,
+     -1, 0, 0,
+     -1, 0, 0,
+     -1, 0, 0,
     };
 
     glGenVertexArrays(1, &vao);
@@ -169,9 +255,6 @@ auto main(int argc, char *argv[]) -> int {
       glBufferData(GL_ARRAY_BUFFER, sizeof(float) * normals.size(), normals.data(), GL_STATIC_DRAW);
       glEnableVertexAttribArray(2);
       glVertexAttribPointer(2, 3, GL_FLOAT, false, 0, nullptr);
-
-      glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo[3]);
-      glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint16_t) * indices.size(), indices.data(), GL_STATIC_DRAW);
     }
     //glBindVertexArray(0);
   }
@@ -255,6 +338,8 @@ auto main(int argc, char *argv[]) -> int {
 
   float delta = 0.F;
 
+  glEnable(GL_DEPTH_TEST);
+
   auto bRunning = true;
   while(bRunning) {
     SDL_Event event;
@@ -274,7 +359,7 @@ auto main(int argc, char *argv[]) -> int {
 
     { camera.update(); }
 
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     {
       glUseProgram(program);
       {
@@ -284,7 +369,7 @@ auto main(int argc, char *argv[]) -> int {
         const auto MVP        = projection * view;
         glUniformMatrix4fv(viewAttribPosition, 1, GL_FALSE, glm::value_ptr(MVP));
 
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, nullptr);
+        glDrawArrays(GL_TRIANGLES, 0, 42);
       }
       glUseProgram(0);
     }
