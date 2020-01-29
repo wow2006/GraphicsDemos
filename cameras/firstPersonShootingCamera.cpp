@@ -15,11 +15,14 @@
 #include <SDL2/SDL_opengl.h>
 // GLM
 #include <glm/gtc/type_ptr.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 // Internal
 #include "firstPersonShootingCamera.hpp"
 
 static constexpr auto GL3D_SUCCESS = 0;
+
+[[maybe_unused]] static constexpr auto SDL_IMMEDIATE_UPDATE = 0;
+[[maybe_unused]] static constexpr auto SDL_SYNCHRONIZED_UPDATE = 1;
+[[maybe_unused]] static constexpr auto SDL_ADAPTIVE_UPDATE = -1;
 
 static void DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const GLvoid *pUserParam) {
   (void)type;
@@ -38,6 +41,13 @@ static void DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity
   std::cout << source << " : " << message << '\n';
 }
 
+static void LogOutputFunction(void *userdata, int category, SDL_LogPriority priority, const char *message) {
+  (void)userdata;
+  (void)category;
+  (void)priority;
+  std::cout << "ERROR: " << message << std::endl;
+}
+
 static auto parseProgramOptions(int argc, char **argv) -> std::optional<std::pair<int, int>> {
   if(argc != 3) {
     return std::nullopt;
@@ -51,6 +61,8 @@ auto main(int argc, char *argv[]) -> int {
     std::cerr << "Can not initialize SDL2\n";
     return EXIT_FAILURE;
   }
+
+  SDL_LogSetOutputFunction(LogOutputFunction, nullptr);
 
   int width = 640;
   int height = 480;
@@ -86,8 +98,7 @@ auto main(int argc, char *argv[]) -> int {
     std::cerr << "Can not create SDL2 context\n";
     return EXIT_FAILURE;
   }
-  // Enable vsync
-  SDL_GL_SetSwapInterval(1);
+  SDL_GL_SetSwapInterval(SDL_IMMEDIATE_UPDATE);
 
   if(gl3wInit() != GL3D_SUCCESS) {
     std::cerr << "Can not initialize GL3W!\n";
@@ -103,140 +114,320 @@ auto main(int argc, char *argv[]) -> int {
   GLuint vao = 0;
   std::array<GLuint, 3> vbo;
   {
-    std::array<float, 42 * 3> verties {
+    std::array<float, 42 * 3> verties{
       // Quad
-      -10.F, 0, 10.F, // 0
-       10.F, 0, 10.F, // 1
-       10.F, 0,-10.F, // 2
-      -10.F, 0, 10.F, // 0
-       10.F, 0,-10.F, // 2
-      -10.F, 0,-10.F, // 3
+      -10.F,
+      0,
+      10.F,  // 0
+      10.F,
+      0,
+      10.F,  // 1
+      10.F,
+      0,
+      -10.F,  // 2
+      -10.F,
+      0,
+      10.F,  // 0
+      10.F,
+      0,
+      -10.F,  // 2
+      -10.F,
+      0,
+      -10.F,  // 3
       // Cube
       // Front
-      -1.F,   0, 1.F, // 4
-       1.F,   0, 1.F, // 5
-       1.F, 2.F, 1.F, // 6
-      -1.F,   0, 1.F, // 4
-       1.F, 2.F, 1.F, // 6
-      -1.F, 2.F, 1.F, // 7
-      // Right
-       1.F,   0, 1.F, // 5
-       1.F,   0,-1.F, // 8
-       1.F,   2,-1.F, // 9
-       1.F,   0, 1.F, // 5
-       1.F,   2,-1.F, // 9
-       1.F, 2.F, 1.F, // 6
-       // Top
-      -1.F, 2.F, 1.F, // 7
-       1.F, 2.F, 1.F, // 6
-       1.F,   2,-1.F, // 9
-      -1.F, 2.F, 1.F, // 7
-       1.F,   2,-1.F, // 9
-      -1.F,   2,-1.F, // 11
-      // Back
-       1.F,   0,-1.F, // 8
-      -1.F,   0,-1.F, // 10
-      -1.F,   2,-1.F, // 11
-       1.F,   0,-1.F, // 8
-      -1.F,   2,-1.F, // 11
-       1.F,   2,-1.F, // 9
-       // Left
-      -1.F,   0,-1.F, // 10
-      -1.F,   0, 1.F, // 4
-      -1.F, 2.F, 1.F, // 7
-      -1.F,   0,-1.F, // 10
-      -1.F, 2.F, 1.F, // 7
-      -1.F,   2,-1.F, // 11
+      -1.F,
+      0,
+      1.F,  // 4
+      1.F,
+      0,
+      1.F,  // 5
+      1.F,
+      2.F,
+      1.F,  // 6
+      -1.F,
+      0,
+      1.F,  // 4
+      1.F,
+      2.F,
+      1.F,  // 6
+      -1.F,
+      2.F,
+      1.F,  // 7
+            // Right
+      1.F,
+      0,
+      1.F,  // 5
+      1.F,
+      0,
+      -1.F,  // 8
+      1.F,
+      2,
+      -1.F,  // 9
+      1.F,
+      0,
+      1.F,  // 5
+      1.F,
+      2,
+      -1.F,  // 9
+      1.F,
+      2.F,
+      1.F,  // 6
+            // Top
+      -1.F,
+      2.F,
+      1.F,  // 7
+      1.F,
+      2.F,
+      1.F,  // 6
+      1.F,
+      2,
+      -1.F,  // 9
+      -1.F,
+      2.F,
+      1.F,  // 7
+      1.F,
+      2,
+      -1.F,  // 9
+      -1.F,
+      2,
+      -1.F,  // 11
+             // Back
+      1.F,
+      0,
+      -1.F,  // 8
+      -1.F,
+      0,
+      -1.F,  // 10
+      -1.F,
+      2,
+      -1.F,  // 11
+      1.F,
+      0,
+      -1.F,  // 8
+      -1.F,
+      2,
+      -1.F,  // 11
+      1.F,
+      2,
+      -1.F,  // 9
+             // Left
+      -1.F,
+      0,
+      -1.F,  // 10
+      -1.F,
+      0,
+      1.F,  // 4
+      -1.F,
+      2.F,
+      1.F,  // 7
+      -1.F,
+      0,
+      -1.F,  // 10
+      -1.F,
+      2.F,
+      1.F,  // 7
+      -1.F,
+      2,
+      -1.F,  // 11
     };
-    std::array<float, 42 * 2> uvcoords {
+    std::array<float, 42 * 2> uvcoords{
       // Quad
-      0, 0, // 0
-      1, 0, // 1
-      1, 1, // 2
-      0, 0, // 0
-      1, 1, // 2
-      0, 1, // 3
+      0,
+      0,  // 0
+      1,
+      0,  // 1
+      1,
+      1,  // 2
+      0,
+      0,  // 0
+      1,
+      1,  // 2
+      0,
+      1,  // 3
       // Cube
       // Front side (0)
-      0, 0, // 0
-      1, 0, // 1
-      1, 1, // 2
-      0, 0, // 0
-      1, 1, // 2
-      0, 1, // 3
+      0,
+      0,  // 0
+      1,
+      0,  // 1
+      1,
+      1,  // 2
+      0,
+      0,  // 0
+      1,
+      1,  // 2
+      0,
+      1,  // 3
       // Front side (0)
-      0, 0, // 0
-      1, 0, // 1
-      1, 1, // 2
-      0, 0, // 0
-      1, 1, // 2
-      0, 1, // 3
+      0,
+      0,  // 0
+      1,
+      0,  // 1
+      1,
+      1,  // 2
+      0,
+      0,  // 0
+      1,
+      1,  // 2
+      0,
+      1,  // 3
       // Front side (0)
-      0, 0, // 0
-      1, 0, // 1
-      1, 1, // 2
-      0, 0, // 0
-      1, 1, // 2
-      0, 1, // 3
+      0,
+      0,  // 0
+      1,
+      0,  // 1
+      1,
+      1,  // 2
+      0,
+      0,  // 0
+      1,
+      1,  // 2
+      0,
+      1,  // 3
       // Front side (0)
-      0, 0, // 0
-      1, 0, // 1
-      1, 1, // 2
-      0, 0, // 0
-      1, 1, // 2
-      0, 1, // 3
+      0,
+      0,  // 0
+      1,
+      0,  // 1
+      1,
+      1,  // 2
+      0,
+      0,  // 0
+      1,
+      1,  // 2
+      0,
+      1,  // 3
       // Front side (0)
-      0, 0, // 0
-      1, 0, // 1
-      1, 1, // 2
-      0, 0, // 0
-      1, 1, // 2
-      0, 1, // 3
+      0,
+      0,  // 0
+      1,
+      0,  // 1
+      1,
+      1,  // 2
+      0,
+      0,  // 0
+      1,
+      1,  // 2
+      0,
+      1,  // 3
     };
-    std::array<float, 42 * 3> normals {
+    std::array<float, 42 * 3> normals{
       // Quad
-      0, 1, 0,
-      0, 1, 0,
-      0, 1, 0,
-      0, 1, 0,
-      0, 1, 0,
-      0, 1, 0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
       // Cube
       // Front
-      0, 0, 1,
-      0, 0, 1,
-      0, 0, 1,
-      0, 0, 1,
-      0, 0, 1,
-      0, 0, 1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1,
       // Right
-      1, 0, 0,
-      1, 0, 0,
-      1, 0, 0,
-      1, 0, 0,
-      1, 0, 0,
-      1, 0, 0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
       // Top
-      0, 1, 0,
-      0, 1, 0,
-      0, 1, 0,
-      0, 1, 0,
-      0, 1, 0,
-      0, 1, 0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
       // Back
-      0, 0,-1,
-      0, 0,-1,
-      0, 0,-1,
-      0, 0,-1,
-      0, 0,-1,
-      0, 0,-1,
+      0,
+      0,
+      -1,
+      0,
+      0,
+      -1,
+      0,
+      0,
+      -1,
+      0,
+      0,
+      -1,
+      0,
+      0,
+      -1,
+      0,
+      0,
+      -1,
       // Left
-     -1, 0, 0,
-     -1, 0, 0,
-     -1, 0, 0,
-     -1, 0, 0,
-     -1, 0, 0,
-     -1, 0, 0,
+      -1,
+      0,
+      0,
+      -1,
+      0,
+      0,
+      -1,
+      0,
+      0,
+      -1,
+      0,
+      0,
+      -1,
+      0,
+      0,
+      -1,
+      0,
+      0,
     };
 
     glGenVertexArrays(1, &vao);
@@ -259,7 +450,7 @@ auto main(int argc, char *argv[]) -> int {
     //glBindVertexArray(0);
   }
 
-  GLuint program;
+  GLuint program = 0;
   {
     const char *vSource = R"(
       #version 450 core
@@ -331,15 +522,13 @@ auto main(int argc, char *argv[]) -> int {
     }
   }
 
-  FPSCamera camera;
-
-  constexpr std::array<float, 4> clearColor = {0.F, 0.F, 0.F, 1.F};
-  glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
-
-  float delta = 0.F;
-
   glEnable(GL_DEPTH_TEST);
 
+  FPSCamera camera;
+
+  GLuint query[2];
+  glGenQueries(2, query);
+  float delta = 0.F;
   auto bRunning = true;
   while(bRunning) {
     SDL_Event event;
@@ -352,21 +541,23 @@ auto main(int argc, char *argv[]) -> int {
       case SDL_MOUSEWHEEL: break;
       case SDL_MOUSEBUTTONDOWN:
       case SDL_MOUSEBUTTONUP: break;
-      case SDL_MOUSEMOTION: camera.walk(delta); break;
+      case SDL_MOUSEMOTION: break;
       }
     }
-    auto startTime = std::chrono::high_resolution_clock::now();
+    glQueryCounter(query[0], GL_TIMESTAMP);
+    const auto startTime = std::chrono::high_resolution_clock::now();
 
-    { camera.update(); }
+    camera.update(delta);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     {
       glUseProgram(program);
       {
+        glBindVertexArray(vao);
         static GLint viewAttribPosition = glGetUniformLocation(program, "MVP");
         const auto projection = glm::perspective(glm::radians(60.F), 4.F / 3.F, 0.1F, 1000.F);
-        const auto view       = glm::lookAt(glm::vec3(10, 10, 10), glm::vec3{}, glm::vec3(0, 1, 0));
-        const auto MVP        = projection * view;
+        const auto view = glm::lookAt(glm::vec3(10, 10, 10), glm::vec3{}, glm::vec3(0, 1, 0));
+        const auto MVP = projection * view;
         glUniformMatrix4fv(viewAttribPosition, 1, GL_FALSE, glm::value_ptr(MVP));
 
         glDrawArrays(GL_TRIANGLES, 0, 42);
@@ -375,10 +566,26 @@ auto main(int argc, char *argv[]) -> int {
     }
     SDL_GL_SwapWindow(pWindow);
 
-    auto stopTime = std::chrono::high_resolution_clock::now();
+    glQueryCounter(query[1], GL_TIMESTAMP);
+    const auto stopTime = std::chrono::high_resolution_clock::now();
 
-    delta = std::chrono::duration<float, std::chrono::seconds::period>(stopTime - startTime).count();
+    delta = std::chrono::duration<float, std::chrono::milliseconds::period>(stopTime - startTime).count();
+
+    // wait until the results are available
+    int stopTimerAvailable = 0;
+    while(!stopTimerAvailable) {
+      glGetQueryObjectiv(query[1], GL_QUERY_RESULT_AVAILABLE, &stopTimerAvailable);
+    }
+
+    GLuint64 startTimeGL, stopTimeGL;
+    // get query results
+    glGetQueryObjectui64v(query[0], GL_QUERY_RESULT, &startTimeGL);
+    glGetQueryObjectui64v(query[1], GL_QUERY_RESULT, &stopTimeGL);
+    printf("\rFrame %+3.3F/%+3.3F ms", delta, static_cast<float>(stopTimeGL - startTimeGL) / 1000000.F);
   }
+
+  glBindVertexArray(0);
+  glDeleteVertexArrays(1, &vao);
 
   SDL_GL_DeleteContext(context);
   SDL_DestroyWindow(pWindow);

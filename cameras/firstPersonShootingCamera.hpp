@@ -1,40 +1,50 @@
 #pragma once
 // GLM
-#include <glm/glm.hpp>
+#include <glm/vec3.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/euler_angles.hpp>
 
 constexpr auto g_fSpeed = 0.1F;
 
+constexpr auto UP = glm::vec3{0, 1, 0};
+
 struct FPSCamera {
 public:
-  void walk(float deltaTime);
+  void walk(bool bForward);
 
-  void strafe(float deltaTime);
+  void strafe();
 
-  void lift(float deltaTime);
+  void lift();
 
-  void update();
+  void update([[maybe_unused]] float delta);
 
   glm::mat4 view() const;
 
 private:
   glm::vec3 mDeltas;
-  glm::vec3 mPosition;
+  glm::vec3 mPosition = { 0, 0,-1};
   glm::vec3 mRotation;
+
+  glm::mat4 mView;
 };
 
-void FPSCamera::walk(float deltaTime) {
-  mDeltas.x += (g_fSpeed * deltaTime);
+void FPSCamera::walk(bool bForward) {
+  mDeltas.x += g_fSpeed * ((bForward) ? 1 : -1);
 }
 
-void FPSCamera::strafe(float deltaTime) {
-  mDeltas.y += (g_fSpeed * deltaTime);
+void FPSCamera::strafe() {
+  //mDeltas.y += (g_fSpeed * deltaTime);
 }
 
-void FPSCamera::lift(float deltaTime) {
-  mDeltas.z += (g_fSpeed * deltaTime);
+void FPSCamera::lift() {
+  //mDeltas.z += (g_fSpeed * deltaTime);
 }
 
-void FPSCamera::update() {}
+void FPSCamera::update([[maybe_unused]] float delta) {
+  mPosition.z += mDeltas.x * delta;
+  mDeltas = {0, 0, 0};
+  mView = glm::lookAt(mPosition, {0, 0, 0}, UP);
+}
 
-glm::mat4 FPSCamera::view() const { return glm::mat4{}; }
+inline glm::mat4 FPSCamera::view() const { return mView; }
 
