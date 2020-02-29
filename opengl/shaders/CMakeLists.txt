@@ -5,6 +5,7 @@ set(
   drawRedTriangleShader
   controlTriangleColorWithMousePosition
   drawTriangleUsingAttributes
+  drawTrianglePositionAndColorUsingAttributes
 )
 
 foreach(sample IN LISTS samples)
