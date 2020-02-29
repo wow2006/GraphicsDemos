@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <style type="text/css" media="screen">
+        body {
+            text-align: center;
+        }
+
+        canvas {
+            display: block;
+            width: 640px;
+            height: 480px;
+            margin: auto;
+            padding: 0;
+            border: none;
+            background-color: black;
+        }
+    </style>
+    <script src="scripts/main.js" charset="utf-8"></script>
+    <script id="vertex_shader" type="x-shader/x-vertex">
+      attribute vec4 a_vertex;
+
+      void main(void) {
+        gl_Position = a_vertex;
+      }
+    </script>
+    <script id="fragment_shader" type="x-shader/x-fragment">
+      void main(void) {
+        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+      }
+    </script>
+    <title>Example02</title>
+</head>
+
+<body onload="initializeGL()">
+    <canvas>
+        Your browser does not seem to support HTML5 canvas.
+    </canvas>
+</body>
+
+</html>

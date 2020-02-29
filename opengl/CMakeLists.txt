@@ -28,3 +28,12 @@ add_executable(programmablePipelineGl3wSDL programmablePipelineGl3wSDL.cpp)
 
 target_link_libraries(programmablePipelineGl3wSDL PRIVATE OpenGL::GL SDL2::SDL2 options::options gl3w::gl3w)
 
+if(ENABLE_Qt5)
+find_package(Qt5 REQUIRED Widgets)
+add_executable(fixedPipelineOpenGLQt5 fixedPipelineOpenGLQt5.cpp)
+
+target_link_libraries(fixedPipelineOpenGLQt5 PRIVATE Qt5::Widgets OpenGL::GL)
+endif()
+
+add_subdirectory(shaders)
+

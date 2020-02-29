@@ -13,12 +13,14 @@
 // SDL
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
+#include <SDL2/SDL_ttf.h>
 // GLM
 #include <glm/gtc/type_ptr.hpp>
 // Internal
 #include "firstPersonShootingCamera.hpp"
 
 static constexpr auto GL3D_SUCCESS = 0;
+static constexpr auto SDL_SUCCESS  = 0;
 
 [[maybe_unused]] static constexpr auto SDL_IMMEDIATE_UPDATE = 0;
 [[maybe_unused]] static constexpr auto SDL_SYNCHRONIZED_UPDATE = 1;
@@ -56,6 +58,55 @@ static auto parseProgramOptions(int argc, char **argv) -> std::optional<std::pai
   return std::make_pair(std::stoi(argv[1]), std::stoi(argv[2]));
 }
 
+static void drawText(const char *pMessage, glm::vec2 topLeft) {
+  if(TTF_Init() != SDL_SUCCESS) {
+    std::cerr << "Can not Initialize SDL2\n";
+    std::exit(EXIT_FAILURE);
+  }
+
+  auto pTitleFont = TTF_OpenFont("font/DroidSansMono.ttf", 48);
+  if(pTitleFont == nullptr) {
+    std::string ttferr = TTF_GetError();
+    std::cerr << "Can not load \"DroidSansMono.ttf\": " << ttferr << '\n';
+    std::exit(EXIT_FAILURE);
+  }
+
+  SDL_Color fg = {255, 128, 0, 255};
+  auto pSurface = TTF_RenderText_Blended(pTitleFont, pMessage, fg);
+  if(pSurface == nullptr) {
+    std::string ttferr = TTF_GetError();
+    std::cerr << "Can not create Blenderd Texture: " << ttferr << '\n';
+    std::exit(EXIT_FAILURE);
+  }
+
+  GLuint colors = pSurface->format->BytesPerPixel;
+  GLuint format;
+  if(colors == 4) {  // alpha
+    if(pSurface->format->Rmask == 0x000000ff)
+      format = GL_RGBA;
+    else
+      format = GL_BGRA;
+  } else {  // no alpha
+    if(pSurface->format->Rmask == 0x000000ff)
+      format = GL_RGB;
+    else
+      format = GL_BGR;
+  }
+
+  auto pPixels = reinterpret_cast<GLubyte *>(pSurface->pixels);
+  GLuint hTex;
+  glGenTextures(1, &hTex);
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, hTex);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, pSurface->w, pSurface->h, 0, format, GL_UNSIGNED_BYTE, pPixels);
+  glGenerateMipmap(GL_TEXTURE_2D);
+  SDL_FreeSurface(pSurface);
+}
+
 auto main(int argc, char *argv[]) -> int {
   if(SDL_Init(SDL_INIT_VIDEO) != 0) {
     std::cerr << "Can not initialize SDL2\n";
@@ -64,7 +115,7 @@ auto main(int argc, char *argv[]) -> int {
 
   SDL_LogSetOutputFunction(LogOutputFunction, nullptr);
 
-  int width = 640;
+  int width  = 640;
   int height = 480;
   if(const auto args = parseProgramOptions(argc, argv); args) {
     constexpr auto firstScreenIndex = 0;
@@ -526,6 +577,8 @@ auto main(int argc, char *argv[]) -> int {
 
   FPSCamera camera;
 
+  char message[512] = "HelloWorld!";
+
   GLuint query[2];
   glGenQueries(2, query);
   float delta = 0.F;
@@ -540,7 +593,10 @@ auto main(int argc, char *argv[]) -> int {
       case SDL_KEYDOWN: break;
       case SDL_MOUSEWHEEL: break;
       case SDL_MOUSEBUTTONDOWN:
-      case SDL_MOUSEBUTTONUP: break;
+      case SDL_MOUSEBUTTONUP: {
+        const auto mouseButtonEvent = event.button;
+        std::cout << "(" << mouseButtonEvent.x << ", " << mouseButtonEvent.y << ")\n";
+      } break;
       case SDL_MOUSEMOTION: break;
       }
     }
@@ -563,6 +619,8 @@ auto main(int argc, char *argv[]) -> int {
         glDrawArrays(GL_TRIANGLES, 0, 42);
       }
       glUseProgram(0);
+
+      drawText(message, glm::vec2{0, 0});
     }
     SDL_GL_SwapWindow(pWindow);
 
@@ -581,7 +639,8 @@ auto main(int argc, char *argv[]) -> int {
     // get query results
     glGetQueryObjectui64v(query[0], GL_QUERY_RESULT, &startTimeGL);
     glGetQueryObjectui64v(query[1], GL_QUERY_RESULT, &stopTimeGL);
-    printf("\rFrame %+3.3F/%+3.3F ms", delta, static_cast<float>(stopTimeGL - startTimeGL) / 1000000.F);
+
+    snprintf(message, 512, "Frame %+3.3F/%+3.3F ms", delta, static_cast<float>(stopTimeGL - startTimeGL) / 1000000.F);
   }
 
   glBindVertexArray(0);
