@@ -6,6 +6,8 @@ set(
   controlTriangleColorWithMousePosition
   drawTriangleUsingAttributes
   drawTrianglePositionAndColorUsingAttributes
+  drawCube
+  drawCubeWithPerspective
 )
 
 foreach(sample IN LISTS samples)

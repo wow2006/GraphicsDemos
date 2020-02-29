@@ -15,9 +15,14 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
 
-static constexpr auto GL3D_SUCCESS       = 0;
-static constexpr auto GL_SHADER_FAILURE  = std::numeric_limits<std::uint32_t>::max();
-static constexpr auto GL_PROGRAM_FAILURE = std::numeric_limits<std::uint32_t>::max();
+[[maybe_unused]] static constexpr auto GL3D_SUCCESS       = 0;
+
+[[maybe_unused]] static constexpr auto SDL_SWAP_IMMEDIATE    = 0;
+[[maybe_unused]] static constexpr auto SDL_SWAP_SYNCHRONIZED = 1;
+[[maybe_unused]] static constexpr auto SDL_SWAP_VSYNC        =-1;
+
+[[maybe_unused]] static constexpr auto GL_SHADER_FAILURE  = std::numeric_limits<std::uint32_t>::max();
+[[maybe_unused]] static constexpr auto GL_PROGRAM_FAILURE = std::numeric_limits<std::uint32_t>::max();
 
 static void DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const GLvoid *pUserParam) {
   (void)type;
@@ -134,7 +139,7 @@ auto main(int argc, char *argv[]) -> int {
     return EXIT_FAILURE;
   }
   // Enable vsync
-  SDL_GL_SetSwapInterval(1);
+  SDL_GL_SetSwapInterval(SDL_SWAP_SYNCHRONIZED);
 
   if(gl3wInit() != GL3D_SUCCESS) {
     std::cerr << "Can not initialize GL3W!\n";
@@ -154,29 +159,33 @@ auto main(int argc, char *argv[]) -> int {
   #version 450 core
 
   layout (location = 0) in vec4 iPosition;
-  layout (location = 1) in vec4 iColor;
-
-  out vec4 vColor;
+  const mat4 cPerspective = mat4(
+    vec4(1.81066, 0, 0, 0),
+    vec4(0, 2.41421, 0, 0),
+    vec4(0, 0, -1.002, -1),
+    vec4(0, 0, -0.2002, 0)
+  );
+  const mat4 cView = mat4(
+    vec4(-1, 0, 0, 0),
+    vec4( 0, 1,-0, 0),
+    vec4(-0,-0,-1, 0),
+    vec4( 0, 0,-1, 1)
+  );
 
   void main() {
-    gl_Position = iPosition;
-    vColor = iColor;
+    gl_Position = cPerspective * cView * iPosition;
   }
   )GLSL";
 
   const char *fragmentShaderSource = R"GLSL(
   #version 450 core
 
-  in vec4 vColor;
   layout (location = 0) out vec4 oColor;
 
   void main() {
-    oColor = vColor;
+    oColor = vec4(1, 0, 0, 1);
   }
   )GLSL";
-
-  glEnable(GL_PROGRAM_POINT_SIZE);
-  glPointSize(10.F);
 
   auto vertexShader   = createShader(GL_VERTEX_SHADER, vertexShaderSource);
   auto fragmentShader = createShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
@@ -195,29 +204,65 @@ auto main(int argc, char *argv[]) -> int {
   glBindVertexArray(vao);
 
   constexpr std::array vertices = {
-    -0.5F,-0.5F, 0.0F, 1.0F,
-     0.5F,-0.5F, 0.0F, 1.0F,
-     0.0F, 0.5F, 0.0F, 1.0F
-  };
-
-  constexpr std::array colors = {
-     1.0F, 0.0F, 0.0F, 1.0F,
-     0.0F, 1.0F, 0.0F, 1.0F,
-     0.0F, 0.0F, 1.0F, 1.0F
+    // 1st Triangle
+    -0.5F,-0.5F, 0.5F,
+     0.5F,-0.5F, 0.5F,
+     0.5F, 0.5F, 0.5F,
+    // 2nd Triangle
+    -0.5F,-0.5F, 0.5F,
+     0.5F, 0.5F, 0.5F,
+    -0.5F, 0.5F, 0.5F,
+    // 3rd Triangle
+     0.5F,-0.5F, 0.5F,
+     0.5F,-0.5F,-0.5F,
+     0.5F, 0.5F,-0.5F,
+    // 4th Triangle
+     0.5F,-0.5F, 0.5F,
+     0.5F, 0.5F,-0.5F,
+     0.5F, 0.5F, 0.5F,
+    // 5th Triangle
+     0.5F,-0.5F,-0.5F,
+    -0.5F,-0.5F,-0.5F,
+    -0.5F, 0.5F,-0.5F,
+    // 6th Triangle
+     0.5F,-0.5F,-0.5F,
+    -0.5F, 0.5F,-0.5F,
+     0.5F, 0.5F,-0.5F,
+    // 7th Triangle
+    -0.5F,-0.5F, 0.5F,
+    -0.5F,-0.5F,-0.5F,
+    -0.5F, 0.5F,-0.5F,
+    // 8th Triangle
+    -0.5F,-0.5F, 0.5F,
+    -0.5F, 0.5F,-0.5F,
+    -0.5F, 0.5F, 0.5F,
+    // 9th Triangle
+    -0.5F, 0.5F, 0.5F,
+    -0.5F, 0.5F, 0.5F,
+     0.5F, 0.5F,-0.5F,
+    // 10th Triangle
+    -0.5F, 0.5F, 0.5F,
+     0.5F, 0.5F,-0.5F,
+    -0.5F, 0.5F,-0.5F,
+    // 11th Triangle
+    -0.5F,-0.5F, 0.5F,
+     0.5F,-0.5F,-0.5F,
+     0.5F,-0.5F, 0.5F,
+    // 12th Triangle
+    -0.5F,-0.5F, 0.5F,
+    -0.5F,-0.5F,-0.5F,
+     0.5F,-0.5F,-0.5F,
   };
 
   constexpr auto positionAttribute = 0U;
-  constexpr auto colorAttribute    = 1U;
 
-  GLuint vbos[2];
-  glGenBuffers(2, vbos);
-  glBindBuffer(GL_ARRAY_BUFFER, vbos[positionAttribute]);
+  GLuint vbo;
+  glGenBuffers(1, &vbo);
+  glBindBuffer(GL_ARRAY_BUFFER, vbo);
   glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float),
                vertices.data(), GL_STATIC_DRAW);
-  glBindBuffer(GL_ARRAY_BUFFER, vbos[colorAttribute]);
-  glBufferData(GL_ARRAY_BUFFER, colors.size() * sizeof(float),
-               colors.data(), GL_STATIC_DRAW);
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+  constexpr auto numberOfTriangles = vertices.size() / 3U;
 
   constexpr glm::vec4 clearColor = {0.F, 0.F, 0.F, 1.F};
   auto bRunning = true;
@@ -234,20 +279,14 @@ auto main(int argc, char *argv[]) -> int {
 
     glUseProgram(program);
     {
-        glBindBuffer(GL_ARRAY_BUFFER, vbos[positionAttribute]);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
         glEnableVertexAttribArray(positionAttribute);
-        glVertexAttribPointer(positionAttribute, 4, GL_FLOAT, false,
+        glVertexAttribPointer(positionAttribute, 3, GL_FLOAT, false,
                               0, nullptr);
 
-        glBindBuffer(GL_ARRAY_BUFFER, vbos[colorAttribute]);
-        glEnableVertexAttribArray(colorAttribute);
-        glVertexAttribPointer(colorAttribute, 4, GL_FLOAT, false,
-                              0, nullptr);
-
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glDrawArrays(GL_TRIANGLES, 0, numberOfTriangles);
 
         glDisableVertexAttribArray(positionAttribute);
-        glDisableVertexAttribArray(colorAttribute);
     }
     glUseProgram(0);
 
