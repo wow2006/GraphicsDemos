@@ -3,6 +3,8 @@ set(
   samples
   drawRedPointShader
   drawRedTriangleShader
+  controlTriangleColorWithMousePosition
+  drawTriangleUsingAttributes
 )
 
 foreach(sample IN LISTS samples)
