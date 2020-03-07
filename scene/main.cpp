@@ -1,29 +1,38 @@
 // STL
+#include <chrono>
 #include <vector>
 #include <cstdlib>
 #include <iostream>
-// GLM
-#include <glm/vec3.hpp>
 // GL3W
-#include "GL/gl3w.h"
+#include <GL/gl3w.h>
 // SDL2
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
+// GLM
+#include <glm/vec3.hpp>
+#include <glm/matrix.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 // assimp
 #include <assimp/scene.h>
 //#include <assimp/Defines.h>
 #include <assimp/Importer.hpp>
 
+static constexpr auto GL3D_SUCCESS       = 0;
 static constexpr auto GL_SHADER_FAILURE  = std::numeric_limits<std::uint32_t>::max();
 static constexpr auto GL_PROGRAM_FAILURE = std::numeric_limits<std::uint32_t>::max();
+static constexpr auto SDL_GL_IMMEDIATE    = 0;
+static constexpr auto SDL_GL_ADAPTIVE_VSYNC = -1;
+static constexpr auto SDL_GL_SYNCHRONIZED = 1;
 
 static const char *vertexShaderSource = R"GLSL(
 #version 450 core
 
 layout (location = 0) in vec4 iPosition;
+layout (location = 0) uniform mat4 MVP;
 
 void main() {
-  gl_Position = iPosition;
+  gl_Position = MVP * iPosition;
 }
 )GLSL";
 
@@ -185,8 +194,6 @@ auto main() -> int {
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
-  gl3wInit();
-
   auto pWindow = SDL_CreateWindow(gTitle, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, gWidth, gHeight, SDL_WINDOW_OPENGL);
   if(pWindow == nullptr) {
     std::cerr << "Can not create window \"" << SDL_GetError() << "\"\n";
@@ -199,8 +206,15 @@ auto main() -> int {
     return EXIT_FAILURE;
   }
 
-  // Enable vsync
-  SDL_GL_SetSwapInterval(1);
+  if(gl3wInit() != GL3D_SUCCESS) {
+    std::cerr << "Can not initialize GL3W!\n";
+    return EXIT_FAILURE;
+  }
+
+  // Enable Immediate update
+  if(SDL_GL_SetSwapInterval(SDL_GL_SYNCHRONIZED) != SDL_SUCCESS) {
+    std::cerr << "Can not set Immediate update!\n";
+  }
 
   Scene scene = LoadFile("cube.obj");
   scene.initialize();
@@ -217,6 +231,12 @@ auto main() -> int {
     glDeleteShader(fragmentShader);
   }
 
+  const auto ratio = static_cast<float>(gWidth) / static_cast<float>(gHeight);
+  const auto prespective = glm::perspective(45.F, ratio, 0.001F, 1000.F);
+  const auto view        = glm::lookAt(glm::vec3{5, 5, 5}, glm::vec3{}, glm::vec3{0, 1, 0});
+
+  const auto MVP = prespective * view;
+
   bool bRunning = true;
   while(bRunning) {
     SDL_Event event;
@@ -225,12 +245,21 @@ auto main() -> int {
         bRunning = false;
       }
     }
+    auto start = std::chrono::high_resolution_clock::now();
+
+    glClear(GL_COLOR_BUFFER_BIT);
 
     glUseProgram(program);
+    glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(MVP));
     scene.draw();
     glUseProgram(0);
 
     SDL_GL_SwapWindow(pWindow);
+
+    auto end = std::chrono::high_resolution_clock::now();
+    float time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    char title[128];
+    printf("\rFPS: %F, Time: %F", time, 1000.F/time);
   }
 
   SDL_GL_DeleteContext(context);
