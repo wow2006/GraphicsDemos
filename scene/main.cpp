@@ -27,15 +27,23 @@ static const char *vertexShaderSource = R"GLSL(
 #version 450 core
 
 layout (location = 0) in vec4 iPosition;
+layout (location = 1) in vec3 iNormal;
+
 layout (location = 0) uniform mat4 MVP;
+
+out vec3 oNormal;
 
 void main() {
   gl_Position = MVP * iPosition;
+  // TODO(Hussein): Check Normal Matrix
+  oNormal = /* NormalMatrix * */ iNormal;
 }
 )GLSL";
 
 static const char *fragmentShaderSource = R"GLSL(
 #version 450 core
+
+in vec3 oNormal;
 
 layout (location = 0) out vec4 oColor;
 
@@ -65,14 +73,16 @@ struct Scene {
       glGenVertexArrays(1, &model.vao);
       glBindVertexArray(model.vao);
       {
-        glGenBuffers(1, model.vbo);
+        glGenBuffers(2, model.vbo);
         glBindBuffer(GL_ARRAY_BUFFER, model.vbo[0]);
-        {
           glBufferData(GL_ARRAY_BUFFER, model.mVertices.size() * 3 * sizeof(float), model.mVertices.data(), GL_STATIC_DRAW);
           glEnableVertexAttribArray(0);
           glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, nullptr);
-        }
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        glBindBuffer(GL_ARRAY_BUFFER, model.vbo[1]);
+          glBufferData(GL_ARRAY_BUFFER, model.mNormals.size() * 3 * sizeof(float), model.mVertices.data(), GL_STATIC_DRAW);
+          glEnableVertexAttribArray(1);
+          glVertexAttribPointer(1, 3, GL_FLOAT, false, 0, nullptr);
       }
       glBindVertexArray(0);
     }
@@ -88,16 +98,19 @@ struct Scene {
 static auto LoadMesh(const aiMesh *pMesh) -> Model {
   Model model;
   model.mVertices.resize(pMesh->mNumVertices * 3);
-  //model.mNormals.reserve(pMesh->mNumVertices * 3);
+  model.mNormals.reserve(pMesh->mNumVertices * 3);
   //model.mTexturesCoords.reserve(pMesh->mNumVertices * 3);
 
   glm::vec3 *pVertex = reinterpret_cast<glm::vec3 *>(model.mVertices.data());
+  glm::vec3 *pNormal = reinterpret_cast<glm::vec3 *>(model.mNormals.data());
   for(auto i = 0U; i < pMesh->mNumVertices; i++) {
     const aiVector3D *pPos = &(pMesh->mVertices[i]);
-    //const aiVector3D* pNormal = &(pMesh->mNormals[i]) : &Zero3D;
+    const aiVector3D* pNrm = &(pMesh->mNormals[i]);
     //const aiVector3D* pTexCoord = paiMesh->HasTextureCoords(0) ? &(paiMesh->mTextureCoords[0][i]) : &Zero3D;
     *pVertex = {pPos->x, pPos->y, pPos->z};
+    *pNormal = {pNrm->x, pNrm->y, pNrm->z};
     ++pVertex;
+    ++pNormal;
   }
   return model;
 }
@@ -265,7 +278,7 @@ auto main() -> int {
     std::cerr << "Can not set Immediate update!\n";
   }
 
-  Scene scene = LoadFile("cube.obj");
+  Scene scene = LoadFile("Sphere.obj");
   scene.initialize();
 
   GLuint program = 0U;
@@ -283,7 +296,7 @@ auto main() -> int {
 
   const auto ratio = static_cast<float>(gWidth) / static_cast<float>(gHeight);
   const auto prespective = glm::perspective(45.F, ratio, 0.001F, 1000.F);
-  const auto view = glm::lookAt(glm::vec3{5, 5, 5}, glm::vec3{}, glm::vec3{0, 1, 0});
+  const auto view = glm::lookAt(glm::vec3{1, 1, 1}, glm::vec3{}, glm::vec3{0, 1, 0});
 
   const auto MVP = prespective * view;
 
