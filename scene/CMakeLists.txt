@@ -20,7 +20,7 @@ target_link_libraries(
 
 file(
   COPY
-  ${CMAKE_CURRENT_LIST_DIR}/cube.obj
+  ${CMAKE_CURRENT_LIST_DIR}/Sphere.obj
   DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
 )
 
