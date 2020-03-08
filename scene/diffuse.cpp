@@ -23,32 +23,58 @@ enum class ShaderResult : std::uint32_t { FAILURE = std::numeric_limits<std::uin
 enum class ProgramResult : std::uint32_t { FAILURE = std::numeric_limits<std::uint32_t>::max() };
 enum class SDL_GL : int { ADAPTIVE_VSYNC = -1, IMMEDIATE = 0, SYNCHRONIZED = 1 };
 
-static const char *vertexShaderSource = R"GLSL(
-#version 450 core
+static void DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const GLvoid *pUserParam) {
+  (void)type;
+  (void)id;
+  (void)severity;
+  (void)length;
+  (void)pUserParam;
+  constexpr std::array ignoreWarrings = {33350};
 
-layout (location = 0) in vec4 iPosition;
+  if(std::any_of(std::cbegin(ignoreWarrings), std::cend(ignoreWarrings), [source](auto current) -> bool {
+       return static_cast<int>(source) == current;
+     })) {
+    return;
+  }
+
+  std::cout << source << " : " << message << '\n';
+}
+
+static const char *vertexShaderSource = R"GLSL(
+#version 330 core
+
+layout (location = 0) in vec3 iPosition;
 layout (location = 1) in vec3 iNormal;
 
-layout (location = 0) uniform mat4 MVP;
+uniform mat3 N;
+uniform mat4 MV;
+uniform mat4 MVP;
 
-out vec3 oNormal;
+out vec3 LightIntensity;
 
 void main() {
-  gl_Position = MVP * iPosition;
-  // TODO(Hussein): Check Normal Matrix
-  oNormal = /* NormalMatrix * */ iNormal;
+  vec3 Ld = vec3(255, 0, 0);
+  vec3 Kd = vec3(0, 0, 255);
+  vec4 LightPosition = vec4(10, 10, 10, 1);
+
+  vec3 tnorm    = normalize(N * iNormal);
+  vec4 eyeCoord = MV * vec4(iPosition, 1);
+  vec3 s        = normalize(vec3(LightPosition - eyeCoord));
+
+  LightIntensity = Ld * Kd * max(dot(s, tnorm), 0);
+
+  gl_Position = MVP * vec4(iNormal, 1);
 }
 )GLSL";
 
 static const char *fragmentShaderSource = R"GLSL(
-#version 450 core
+#version 330 core
 
-in vec3 oNormal;
-
+in vec3 LightIntensity;
 layout (location = 0) out vec4 oColor;
 
 void main() {
-  oColor = vec4(1, 0, 0, 1);
+  oColor = vec4(LightIntensity, 1.0);
 }
 )GLSL";
 
@@ -57,8 +83,22 @@ struct Model {
   GLuint vbo[3];
   void draw() const {
     glBindVertexArray(vao);
+          constexpr auto VERTEX_ATTRIBUTE = 0U;
+          glBindBuffer(GL_ARRAY_BUFFER, vbo[VERTEX_ATTRIBUTE]);
+          glVertexAttribPointer(VERTEX_ATTRIBUTE, 3, GL_FLOAT, false, 0, nullptr);
+          glEnableVertexAttribArray(VERTEX_ATTRIBUTE);
+
+          constexpr auto NORMAL_ATTRIBUTE = 1U;
+          glBindBuffer(GL_ARRAY_BUFFER, vbo[NORMAL_ATTRIBUTE]);
+          glVertexAttribPointer(NORMAL_ATTRIBUTE, 3, GL_FLOAT, false, 0, nullptr);
+          glEnableVertexAttribArray(NORMAL_ATTRIBUTE);
+
     { glDrawArrays(GL_TRIANGLES, 0, mVertices.size() / 3); }
-    glBindVertexArray(0);
+
+          glDisableVertexAttribArray(VERTEX_ATTRIBUTE);
+          glDisableVertexAttribArray(NORMAL_ATTRIBUTE);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    //glBindVertexArray(0);
   }
   std::vector<float> mVertices;
   std::vector<float> mNormals;
@@ -74,15 +114,21 @@ struct Scene {
       glBindVertexArray(model.vao);
       {
         glGenBuffers(2, model.vbo);
-        glBindBuffer(GL_ARRAY_BUFFER, model.vbo[0]);
+        {
+          constexpr auto VERTEX_ATTRIBUTE = 0U;
+          glBindBuffer(GL_ARRAY_BUFFER, model.vbo[VERTEX_ATTRIBUTE]);
           glBufferData(GL_ARRAY_BUFFER, model.mVertices.size() * 3 * sizeof(float), model.mVertices.data(), GL_STATIC_DRAW);
-          glEnableVertexAttribArray(0);
-          glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, nullptr);
+          glVertexAttribPointer(VERTEX_ATTRIBUTE, 3, GL_FLOAT, false, 0, nullptr);
+          glEnableVertexAttribArray(VERTEX_ATTRIBUTE);
+        }
 
-        glBindBuffer(GL_ARRAY_BUFFER, model.vbo[1]);
-          glBufferData(GL_ARRAY_BUFFER, model.mNormals.size() * 3 * sizeof(float), model.mVertices.data(), GL_STATIC_DRAW);
-          glEnableVertexAttribArray(1);
-          glVertexAttribPointer(1, 3, GL_FLOAT, false, 0, nullptr);
+        {
+          constexpr auto NORMAL_ATTRIBUTE = 1U;
+          glBindBuffer(GL_ARRAY_BUFFER, model.vbo[NORMAL_ATTRIBUTE]);
+          glBufferData(GL_ARRAY_BUFFER, model.mNormals.size() * 3 * sizeof(float), model.mNormals.data(), GL_STATIC_DRAW);
+          glVertexAttribPointer(NORMAL_ATTRIBUTE, 3, GL_FLOAT, false, 0, nullptr);
+          glEnableVertexAttribArray(NORMAL_ATTRIBUTE);
+        }
       }
       glBindVertexArray(0);
     }
@@ -98,14 +144,14 @@ struct Scene {
 static auto LoadMesh(const aiMesh *pMesh) -> Model {
   Model model;
   model.mVertices.resize(pMesh->mNumVertices * 3);
-  model.mNormals.reserve(pMesh->mNumVertices * 3);
+  model.mNormals.resize(pMesh->mNumVertices * 3);
   //model.mTexturesCoords.reserve(pMesh->mNumVertices * 3);
 
   glm::vec3 *pVertex = reinterpret_cast<glm::vec3 *>(model.mVertices.data());
   glm::vec3 *pNormal = reinterpret_cast<glm::vec3 *>(model.mNormals.data());
   for(auto i = 0U; i < pMesh->mNumVertices; i++) {
     const aiVector3D *pPos = &(pMesh->mVertices[i]);
-    const aiVector3D* pNrm = &(pMesh->mNormals[i]);
+    const aiVector3D *pNrm = &(pMesh->mNormals[i]);
     //const aiVector3D* pTexCoord = paiMesh->HasTextureCoords(0) ? &(paiMesh->mTextureCoords[0][i]) : &Zero3D;
     *pVertex = {pPos->x, pPos->y, pPos->z};
     *pNormal = {pNrm->x, pNrm->y, pNrm->z};
@@ -273,12 +319,18 @@ auto main() -> int {
     return EXIT_FAILURE;
   }
 
+  // Set OpenGL Debug Callback
+  if(glDebugMessageCallback) {
+    std::cout << "Debug is enabled\n";
+    glDebugMessageCallback(DebugCallback, nullptr);
+  }
+
   // Enable Immediate update
   if(SDL_GL_SetSwapInterval(static_cast<int>(SDL_GL::SYNCHRONIZED)) != SDL_SUCCESS) {
     std::cerr << "Can not set Immediate update!\n";
   }
 
-  Scene scene = LoadFile("Sphere.obj");
+  Scene scene = LoadFile("sphere.obj");
   scene.initialize();
 
   GLuint program = 0U;
@@ -296,12 +348,17 @@ auto main() -> int {
 
   const auto ratio = static_cast<float>(gWidth) / static_cast<float>(gHeight);
   const auto prespective = glm::perspective(45.F, ratio, 0.001F, 1000.F);
-  const auto view = glm::lookAt(glm::vec3{1, 1, 1}, glm::vec3{}, glm::vec3{0, 1, 0});
+  const auto view = glm::lookAt(glm::vec3{5, 5, 5}, glm::vec3{}, glm::vec3{0, 1, 0});
 
   const auto MVP = prespective * view;
 
+  const auto N = glm::mat3(glm::vec3(view[0]), glm::vec3(view[1]), glm::vec3(view[2]));
+
   Timer<TimerType::CPU> cpuTimer;
   Timer<TimerType::GPU> gpuTimer;
+
+  glEnable(GL_DEPTH_TEST);
+  glDepthFunc(GL_ALWAYS);
 
   bool bRunning = true;
   while(bRunning) {
@@ -314,11 +371,15 @@ auto main() -> int {
     cpuTimer.start();
     gpuTimer.start();
 
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glUseProgram(program);
-    glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(MVP));
-    scene.draw();
+    {
+      glUniformMatrix3fv(glGetUniformLocation(program, "N"),   1, GL_FALSE, glm::value_ptr(N));
+      glUniformMatrix4fv(glGetUniformLocation(program, "MV"),  1, GL_FALSE, glm::value_ptr(view));
+      glUniformMatrix4fv(glGetUniformLocation(program, "MVP"), 1, GL_FALSE, glm::value_ptr(MVP));
+      scene.draw();
+    }
     glUseProgram(0);
 
     SDL_GL_SwapWindow(pWindow);
@@ -326,8 +387,10 @@ auto main() -> int {
     const float cpuTime = static_cast<float>(cpuTimer.stop());
     const float gpuTime = static_cast<float>(gpuTimer.stop());
     printf("\rCPU: FPS: %.3F, Time: %.3F, GPU: FPS: %.3F, Time: %.3F",
-        static_cast<double>(1000.F / cpuTime), static_cast<double>(cpuTime),
-        static_cast<double>(1000.F / gpuTime), static_cast<double>(gpuTime));
+           static_cast<double>(1000.F / cpuTime),
+           static_cast<double>(cpuTime),
+           static_cast<double>(1000.F / gpuTime),
+           static_cast<double>(gpuTime));
   }
 
   SDL_GL_DeleteContext(context);

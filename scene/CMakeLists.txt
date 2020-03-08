@@ -3,24 +3,32 @@ find_package(SDL2   REQUIRED)
 find_package(gl3w   REQUIRED)
 find_package(Assimp REQUIRED)
 
-add_executable(
-  scene
-  main.cpp
+set(
+  scenes
+  loadObj
+  diffuse
 )
 
-target_link_libraries(
-  scene
-  PRIVATE
-  SDL2::SDL2
-  options::options
-  # TODO(Hussein): replace it with Assimp::Assimp
-  ${Assimp_LIBRARY}
-  gl3w::gl3w
-)
+foreach(scene IN LISTS scenes)
+  add_executable(
+    ${scene}
+    ${scene}.cpp
+  )
+
+  target_link_libraries(
+    ${scene}
+    PRIVATE
+    SDL2::SDL2
+    options::options
+    # TODO(Hussein): replace it with Assimp::Assimp
+    ${Assimp_LIBRARY}
+    gl3w::gl3w
+  )
+endforeach()
 
 file(
   COPY
-  ${CMAKE_CURRENT_LIST_DIR}/Sphere.obj
+  ${CMAKE_CURRENT_LIST_DIR}/sphere.obj
   DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
 )
 
