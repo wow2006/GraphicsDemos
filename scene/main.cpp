@@ -73,16 +73,19 @@ struct Scene {
       glGenVertexArrays(1, &model.vao);
       glBindVertexArray(model.vao);
       {
-        glGenBuffers(2, model.vbo);
-        glBindBuffer(GL_ARRAY_BUFFER, model.vbo[0]);
-          glBufferData(GL_ARRAY_BUFFER, model.mVertices.size() * 3 * sizeof(float), model.mVertices.data(), GL_STATIC_DRAW);
-          glEnableVertexAttribArray(0);
-          glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, nullptr);
+        constexpr auto VertexAttrib = 0U;
+        constexpr auto NormalAttrib = 1U;
 
-        glBindBuffer(GL_ARRAY_BUFFER, model.vbo[1]);
-          glBufferData(GL_ARRAY_BUFFER, model.mNormals.size() * 3 * sizeof(float), model.mVertices.data(), GL_STATIC_DRAW);
-          glEnableVertexAttribArray(1);
-          glVertexAttribPointer(1, 3, GL_FLOAT, false, 0, nullptr);
+        glGenBuffers(2, model.vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, model.vbo[VertexAttrib]);
+          glBufferData(GL_ARRAY_BUFFER, model.mVertices.size() * 3 * sizeof(float), model.mVertices.data(), GL_STATIC_DRAW);
+          glEnableVertexAttribArray(VertexAttrib);
+          glVertexAttribPointer(VertexAttrib, 3, GL_FLOAT, false, 0, nullptr);
+
+        glBindBuffer(GL_ARRAY_BUFFER, model.vbo[NormalAttrib]);
+          glBufferData(GL_ARRAY_BUFFER, model.mNormals.size() * 3 * sizeof(float), model.mNormals.data(), GL_STATIC_DRAW);
+          glEnableVertexAttribArray(NormalAttrib);
+          glVertexAttribPointer(NormalAttrib, 3, GL_FLOAT, false, 0, nullptr);
       }
       glBindVertexArray(0);
     }
@@ -317,8 +320,10 @@ auto main() -> int {
     glClear(GL_COLOR_BUFFER_BIT);
 
     glUseProgram(program);
-    glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(MVP));
-    scene.draw();
+    {
+      glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(MVP));
+      scene.draw();
+    }
     glUseProgram(0);
 
     SDL_GL_SwapWindow(pWindow);

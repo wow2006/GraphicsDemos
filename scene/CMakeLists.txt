@@ -1,21 +1,27 @@
 # ${CMAKE_SOURCE_DIR}/cameras/CMakeLists.txt
-find_package(SDL2   REQUIRED)
-find_package(gl3w   REQUIRED)
 find_package(Assimp REQUIRED)
+find_package(gl3w   REQUIRED)
 
 add_executable(
   scene
   main.cpp
 )
 
+target_include_directories(
+  scene
+  PRIVATE
+  ${Assimp_INCLUDE_DIR}
+)
+
 target_link_libraries(
   scene
   PRIVATE
-  SDL2::SDL2
   options::options
+  gl3w::gl3w
+  CONAN_PKG::glm
+  CONAN_PKG::sdl2
   # TODO(Hussein): replace it with Assimp::Assimp
   ${Assimp_LIBRARY}
-  gl3w::gl3w
 )
 
 file(
