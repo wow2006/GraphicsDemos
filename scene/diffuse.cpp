@@ -83,14 +83,7 @@ struct Model {
   GLuint vbo[3];
   void draw() const {
     glBindVertexArray(vao);
-    static GLuint drawingCount = 1;
-
-    if(drawingCount == count) {
-      drawingCount = count;
-    }
-
-    { glDrawArrays(GL_TRIANGLES, 0, drawingCount++); }
-
+    { glDrawArrays(GL_TRIANGLES, 0, count); }
     glBindVertexArray(0);
   }
   GLuint count;
@@ -343,7 +336,7 @@ auto main() -> int {
 
   const auto ratio       = static_cast<float>(gWidth) / static_cast<float>(gHeight);
   const auto prespective = glm::perspective(45.F, ratio, 0.001F, 1000.F);
-  const auto view        = glm::lookAt(glm::vec3{1, 1, 1}, glm::vec3{}, glm::vec3{0, 1, 0});
+  const auto view        = glm::lookAt(glm::vec3{2, 2, 2}, glm::vec3{}, glm::vec3{0, 1, 0});
 
   const auto MVP = prespective * view;
 
