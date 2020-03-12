@@ -50,20 +50,20 @@ uniform mat3 N;
 uniform mat4 MV;
 uniform mat4 MVP;
 
+uniform vec3 Ld;
+uniform vec3 Kd;
+uniform vec4 LightPosition;
+
 out vec3 LightIntensity;
 
 void main() {
-  vec3 Ld = vec3(255, 0, 0);
-  vec3 Kd = vec3(0, 0, 255);
-  vec4 LightPosition = vec4(10, 10, 10, 1);
-
   vec3 tnorm    = normalize(N * iNormal);
   vec4 eyeCoord = MV * vec4(iPosition, 1);
   vec3 s        = normalize(vec3(LightPosition - eyeCoord));
 
   LightIntensity = Ld * Kd * max(dot(s, tnorm), 0);
 
-  gl_Position = MVP * vec4(iNormal, 1);
+  gl_Position = MVP * vec4(iPosition, 1);
 }
 )GLSL";
 
@@ -83,23 +83,17 @@ struct Model {
   GLuint vbo[3];
   void draw() const {
     glBindVertexArray(vao);
-          constexpr auto VERTEX_ATTRIBUTE = 0U;
-          glBindBuffer(GL_ARRAY_BUFFER, vbo[VERTEX_ATTRIBUTE]);
-          glVertexAttribPointer(VERTEX_ATTRIBUTE, 3, GL_FLOAT, false, 0, nullptr);
-          glEnableVertexAttribArray(VERTEX_ATTRIBUTE);
+    static GLuint drawingCount = 1;
 
-          constexpr auto NORMAL_ATTRIBUTE = 1U;
-          glBindBuffer(GL_ARRAY_BUFFER, vbo[NORMAL_ATTRIBUTE]);
-          glVertexAttribPointer(NORMAL_ATTRIBUTE, 3, GL_FLOAT, false, 0, nullptr);
-          glEnableVertexAttribArray(NORMAL_ATTRIBUTE);
+    if(drawingCount == count) {
+      drawingCount = count;
+    }
 
-    { glDrawArrays(GL_TRIANGLES, 0, mVertices.size() / 3); }
+    { glDrawArrays(GL_TRIANGLES, 0, drawingCount++); }
 
-          glDisableVertexAttribArray(VERTEX_ATTRIBUTE);
-          glDisableVertexAttribArray(NORMAL_ATTRIBUTE);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    //glBindVertexArray(0);
+    glBindVertexArray(0);
   }
+  GLuint count;
   std::vector<float> mVertices;
   std::vector<float> mNormals;
   std::vector<float> mTexturesCoords;
@@ -110,6 +104,7 @@ struct Scene {
 
   void initialize() {
     for(auto &model : mModels) {
+      model.count = model.mVertices.size()/3;
       glGenVertexArrays(1, &model.vao);
       glBindVertexArray(model.vao);
       {
@@ -117,7 +112,7 @@ struct Scene {
         {
           constexpr auto VERTEX_ATTRIBUTE = 0U;
           glBindBuffer(GL_ARRAY_BUFFER, model.vbo[VERTEX_ATTRIBUTE]);
-          glBufferData(GL_ARRAY_BUFFER, model.mVertices.size() * 3 * sizeof(float), model.mVertices.data(), GL_STATIC_DRAW);
+          glBufferData(GL_ARRAY_BUFFER, model.mVertices.size() * sizeof(float), model.mVertices.data(), GL_STATIC_DRAW);
           glVertexAttribPointer(VERTEX_ATTRIBUTE, 3, GL_FLOAT, false, 0, nullptr);
           glEnableVertexAttribArray(VERTEX_ATTRIBUTE);
         }
@@ -125,7 +120,7 @@ struct Scene {
         {
           constexpr auto NORMAL_ATTRIBUTE = 1U;
           glBindBuffer(GL_ARRAY_BUFFER, model.vbo[NORMAL_ATTRIBUTE]);
-          glBufferData(GL_ARRAY_BUFFER, model.mNormals.size() * 3 * sizeof(float), model.mNormals.data(), GL_STATIC_DRAW);
+          glBufferData(GL_ARRAY_BUFFER, model.mNormals.size() * sizeof(float), model.mNormals.data(), GL_STATIC_DRAW);
           glVertexAttribPointer(NORMAL_ATTRIBUTE, 3, GL_FLOAT, false, 0, nullptr);
           glEnableVertexAttribArray(NORMAL_ATTRIBUTE);
         }
@@ -346,19 +341,34 @@ auto main() -> int {
     glDeleteShader(fragmentShader);
   }
 
-  const auto ratio = static_cast<float>(gWidth) / static_cast<float>(gHeight);
+  const auto ratio       = static_cast<float>(gWidth) / static_cast<float>(gHeight);
   const auto prespective = glm::perspective(45.F, ratio, 0.001F, 1000.F);
-  const auto view = glm::lookAt(glm::vec3{5, 5, 5}, glm::vec3{}, glm::vec3{0, 1, 0});
+  const auto view        = glm::lookAt(glm::vec3{1, 1, 1}, glm::vec3{}, glm::vec3{0, 1, 0});
 
   const auto MVP = prespective * view;
 
   const auto N = glm::mat3(glm::vec3(view[0]), glm::vec3(view[1]), glm::vec3(view[2]));
 
+  auto locationN   = glGetUniformLocation(program, "N");
+  auto locationMV  = glGetUniformLocation(program, "MV");
+  auto locationMVP = glGetUniformLocation(program, "MVP");
+
+  auto locationLd = glGetUniformLocation(program, "Ld");
+  auto locationKd = glGetUniformLocation(program, "Kd");
+
+  auto locationLightPosition = glGetUniformLocation(program, "LightPosition");
+  printf("N=%d, MV=%d, MVP=%d\n",
+      locationN, locationMV, locationMVP);
+  if(locationN == -1 || locationMV == -1 || locationMVP == -1) {
+    std::cerr << "Some location values is '-1'\n";
+    return EXIT_FAILURE;
+  }
+
   Timer<TimerType::CPU> cpuTimer;
   Timer<TimerType::GPU> gpuTimer;
 
   glEnable(GL_DEPTH_TEST);
-  glDepthFunc(GL_ALWAYS);
+  glDepthFunc(GL_LESS);
 
   bool bRunning = true;
   while(bRunning) {
@@ -375,9 +385,15 @@ auto main() -> int {
 
     glUseProgram(program);
     {
-      glUniformMatrix3fv(glGetUniformLocation(program, "N"),   1, GL_FALSE, glm::value_ptr(N));
-      glUniformMatrix4fv(glGetUniformLocation(program, "MV"),  1, GL_FALSE, glm::value_ptr(view));
-      glUniformMatrix4fv(glGetUniformLocation(program, "MVP"), 1, GL_FALSE, glm::value_ptr(MVP));
+      glUniform3fv(locationLd, 1, glm::value_ptr(glm::vec3(1, 1, 1)));
+      glUniform3fv(locationKd, 1, glm::value_ptr(glm::vec3(1, 1, 1)));
+
+      glUniform4fv(locationLightPosition, 1, glm::value_ptr(glm::vec4(10, 10, 10, 1)));
+
+      glUniformMatrix3fv(locationN,   1, GL_FALSE, glm::value_ptr(N));
+      glUniformMatrix4fv(locationMV,  1, GL_FALSE, glm::value_ptr(view));
+      glUniformMatrix4fv(locationMVP, 1, GL_FALSE, glm::value_ptr(MVP));
+
       scene.draw();
     }
     glUseProgram(0);
