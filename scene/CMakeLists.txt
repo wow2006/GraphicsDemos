@@ -8,6 +8,7 @@ set(
   loadObj
   diffuse
   diffusePerFragment
+  ambientPerFragment
 )
 
 foreach(scene IN LISTS scenes)
