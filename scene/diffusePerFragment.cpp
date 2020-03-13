@@ -46,35 +46,45 @@ static const char *vertexShaderSource = R"GLSL(
 layout (location = 0) in vec3 iPosition;
 layout (location = 1) in vec3 iNormal;
 
-uniform mat3 N;
-uniform mat4 MV;
-uniform mat4 MVP;
+struct Matrices {
+mat3 Normal;
+mat4 ModelView;
+mat4 ModelViewProjection;
+};
+uniform Matrices uMatrices;
 
 smooth out vec3 oNormal;
 smooth out vec3 oPosition;
 
 void main() {
-  oNormal     = normalize(N * iNormal);
-  oPosition   = vec3(MV * vec4(iPosition, 1));
-  gl_Position = MVP * vec4(iPosition, 1);
+  oNormal     = normalize(uMatrices.Normal * iNormal);
+  oPosition   = vec3(uMatrices.ModelView * vec4(iPosition, 1));
+  gl_Position = uMatrices.ModelViewProjection * vec4(iPosition, 1);
 }
 )GLSL";
 
 static const char *fragmentShaderSource = R"GLSL(
 #version 330 core
 
-uniform vec3 Ld;
-uniform vec3 Kd;
-uniform vec3 LightPosition;
+struct Material {
+vec3 Diffuse;
+};
+uniform Material uMatrial;
+
+struct Light {
+vec3 Pos;
+vec3 Color;
+};
+uniform Light uLight;
 
 in vec3 oNormal;
 in vec3 oPosition;
 layout (location = 0) out vec4 oColor;
 
 void main() {
-  vec3 s        = normalize(LightPosition - oPosition);
+  vec3 s        = normalize(uLight.Pos - oPosition);
 
-  vec3 diffuse = Ld * Kd * max(dot(s, oNormal), 0);
+  vec3 diffuse = uLight.Color * uMatrial.Diffuse * max(dot(s, oNormal), 0);
 
   oColor = vec4(diffuse, 1.0);
 }
@@ -344,20 +354,12 @@ auto main() -> int {
 
   const auto N = glm::mat3(glm::vec3(view[0]), glm::vec3(view[1]), glm::vec3(view[2]));
 
-  auto locationN   = glGetUniformLocation(program, "N");
-  auto locationMV  = glGetUniformLocation(program, "MV");
-  auto locationMVP = glGetUniformLocation(program, "MVP");
-
-  auto locationLd = glGetUniformLocation(program, "Ld");
-  auto locationKd = glGetUniformLocation(program, "Kd");
-
-  auto locationLightPosition = glGetUniformLocation(program, "LightPosition");
-  printf("N=%d, MV=%d, MVP=%d\n",
-      locationN, locationMV, locationMVP);
-  if(locationN == -1 || locationMV == -1 || locationMVP == -1) {
-    std::cerr << "Some location values is '-1'\n";
-    return EXIT_FAILURE;
-  }
+  auto locationMatrialDiffuse              = glGetUniformLocation(program, "uMatrial.Diffuse");
+  auto locationMatricesNormal              = glGetUniformLocation(program, "uMatrices.Normal");
+  auto locationMatricesModelView           = glGetUniformLocation(program, "uMatrices.ModelView");
+  auto locationMatricesModelViewProjection = glGetUniformLocation(program, "uMatrices.ModelViewProjection");
+  auto locationLightPos                    = glGetUniformLocation(program, "uLight.Pos");
+  auto locationLightColor                  = glGetUniformLocation(program, "uLight.Color");
 
   Timer<TimerType::CPU> cpuTimer;
   Timer<TimerType::GPU> gpuTimer;
@@ -380,14 +382,14 @@ auto main() -> int {
 
     glUseProgram(program);
     {
-      glUniform3fv(locationLd, 1, glm::value_ptr(glm::vec3(1, 1, 1)));
-      glUniform3fv(locationKd, 1, glm::value_ptr(glm::vec3(1, 1, 1)));
+      glUniform3fv(locationMatrialDiffuse,   1, glm::value_ptr(glm::vec3(1, 1, 1)));
+      glUniform3fv(locationLightColor, 1, glm::value_ptr(glm::vec3(1, 1, 1)));
 
-      glUniform3fv(locationLightPosition, 1, glm::value_ptr(glm::vec3(10, 10, 10)));
+      glUniform3fv(locationLightPos, 1, glm::value_ptr(glm::vec3(10, 10, 10)));
 
-      glUniformMatrix3fv(locationN,   1, GL_FALSE, glm::value_ptr(N));
-      glUniformMatrix4fv(locationMV,  1, GL_FALSE, glm::value_ptr(view));
-      glUniformMatrix4fv(locationMVP, 1, GL_FALSE, glm::value_ptr(MVP));
+      glUniformMatrix3fv(locationMatricesNormal,              1, GL_FALSE, glm::value_ptr(N));
+      glUniformMatrix4fv(locationMatricesModelView,           1, GL_FALSE, glm::value_ptr(view));
+      glUniformMatrix4fv(locationMatricesModelViewProjection, 1, GL_FALSE, glm::value_ptr(MVP));
 
       scene.draw();
     }
