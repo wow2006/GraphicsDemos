@@ -67,11 +67,13 @@ uniform Matrices uMatrices;
 out vec3 LightIntensity;
 
 void main() {
-  vec3 tnorm    = normalize(uMatrices.Normal * iNormal);
+  vec3 n        = normalize(uMatrices.Normal * iNormal);
   vec4 eyeCoord = uMatrices.ModelView * vec4(iPosition, 1);
   vec3 s        = normalize(vec3(uLight.Pos - eyeCoord));
+  float sn      = max(dot(s, n), 0);
 
-  LightIntensity = uLight.Color * uMatrial.Diffuse * max(dot(s, tnorm), 0);
+  // L = Ld . Kd . s . n
+  LightIntensity = uLight.Color * uMatrial.Diffuse * sn;
 
   gl_Position = uMatrices.ModelViewProjection * vec4(iPosition, 1);
 }

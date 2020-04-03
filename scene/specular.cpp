@@ -46,19 +46,50 @@ static const char *vertexShaderSource = R"GLSL(
 layout (location = 0) in vec3 iPosition;
 layout (location = 1) in vec3 iNormal;
 
+struct Material {
+  vec3  Ambient;
+  vec3  Diffuse;
+  vec3  Specular;
+  float Shininess;
+};
+uniform Material uMaterial;
+
+struct Light {
+  vec4 Position;
+  vec3 Ambient;
+  vec3 Diffuse;
+  vec3 Specular;
+};
+uniform Light uLight;
+
 struct Matrices {
-mat3 Normal;
-mat4 ModelView;
-mat4 ModelViewProjection;
+  mat3 Normal;
+  mat4 ModelView;
+  mat4 ModelViewProjection;
 };
 uniform Matrices uMatrices;
 
-smooth out vec3 oNormal;
-smooth out vec3 oPosition;
+out vec3 oVertexColor;
 
 void main() {
-  oNormal     = normalize(uMatrices.Normal * iNormal);
-  oPosition   = vec3(uMatrices.ModelView * vec4(iPosition, 1));
+  // La = Ka * La
+  vec3 La = uMaterial.Ambient * uLight.Ambient;
+  // Ld = Kd * Ld * dot(s, n)
+  vec3 n = normalize(uMatrices.Normal * iNormal);
+  vec4 eyeCoords = uMatrices.ModelView * vec4(iPosition, 1);
+  vec3 s = normalize(vec3(uLight.Position - eyeCoords));
+  float sDotN = max(dot(s, n), 0);
+  vec3 Ld = uMaterial.Diffuse * uLight.Diffuse * sDotN;
+  // Ls = Kd * Ls * pow(dot(r, v), f)
+  vec3 v  = normalize(-eyeCoords.xyz);
+  vec3 r  = reflect(-s, n);
+  vec3 Ls = vec3(0);
+  if(sDotN > 0.0) {
+    Ls = uMaterial.Specular * uLight.Specular * pow(max(dot(r, v), 0), uMaterial.Shininess);
+  }
+  // Color = La + Ld + Ls
+  oVertexColor = La + Ld + Ls;
+
   gl_Position = uMatrices.ModelViewProjection * vec4(iPosition, 1);
 }
 )GLSL";
@@ -66,29 +97,11 @@ void main() {
 static const char *fragmentShaderSource = R"GLSL(
 #version 330 core
 
-struct Material {
-vec3 Ambient;
-vec3 Diffuse;
-};
-uniform Material uMatrial;
-
-struct Light {
-vec3 Pos;
-vec3 Color;
-};
-uniform Light uLight;
-
-in vec3 oNormal;
-in vec3 oPosition;
-layout (location = 0) out vec4 oColor;
+in vec3 oVertexColor;
+layout (location = 0) out vec4 oFragmentColor;
 
 void main() {
-  vec3 s        = normalize(uLight.Pos - oPosition);
-
-  vec3 ambient = uMatrial.Ambient;
-  vec3 diffuse = uLight.Color * uMatrial.Diffuse * max(dot(s, oNormal), 0);
-
-  oColor = vec4(ambient + diffuse, 1.0);
+  oFragmentColor = vec4(oVertexColor, 1);
 }
 )GLSL";
 
@@ -356,13 +369,19 @@ auto main() -> int {
 
   const auto N = glm::mat3(glm::vec3(view[0]), glm::vec3(view[1]), glm::vec3(view[2]));
 
-  auto locationMatrialAmbient              = glGetUniformLocation(program, "uMatrial.Ambient");
-  auto locationMatrialDiffuse              = glGetUniformLocation(program, "uMatrial.Diffuse");
+  auto locationMatrialAmbient              = glGetUniformLocation(program, "uMaterial.Ambient");
+  auto locationMatrialDiffuse              = glGetUniformLocation(program, "uMaterial.Diffuse");
+  auto locationMatrialSpecular             = glGetUniformLocation(program, "uMaterial.Specular");
+  auto locationMatrialShinness             = glGetUniformLocation(program, "uMaterial.Shininess");
+
+  auto locationLightPos                    = glGetUniformLocation(program, "uLight.Position");
+  auto locationLightAmbient                = glGetUniformLocation(program, "uLight.Ambient");
+  auto locationLightDiffuse                = glGetUniformLocation(program, "uLight.Diffuse");
+  auto locationLightSpecular               = glGetUniformLocation(program, "uLight.Specular");
+
   auto locationMatricesNormal              = glGetUniformLocation(program, "uMatrices.Normal");
   auto locationMatricesModelView           = glGetUniformLocation(program, "uMatrices.ModelView");
   auto locationMatricesModelViewProjection = glGetUniformLocation(program, "uMatrices.ModelViewProjection");
-  auto locationLightPos                    = glGetUniformLocation(program, "uLight.Pos");
-  auto locationLightColor                  = glGetUniformLocation(program, "uLight.Color");
 
   Timer<TimerType::CPU> cpuTimer;
   Timer<TimerType::GPU> gpuTimer;
@@ -385,11 +404,16 @@ auto main() -> int {
 
     glUseProgram(program);
     {
-      glUniform3fv(locationMatrialAmbient,                    1, glm::value_ptr(glm::vec3(0.2, 0.2, 0.2)));
-      glUniform3fv(locationMatrialDiffuse,                    1, glm::value_ptr(glm::vec3(1, 1, 1)));
-      glUniform3fv(locationLightColor,                        1, glm::value_ptr(glm::vec3(1, 1, 1)));
+      glUniform3fv(locationMatrialAmbient, 1, glm::value_ptr(glm::vec3(0.1, 0.1, 0.1)));
+      glUniform3fv(locationMatrialDiffuse, 1, glm::value_ptr(glm::vec3(1, 0, 0)));
+      glUniform3fv(locationMatrialSpecular, 1, glm::value_ptr(glm::vec3(1, 1, 1)));
+      glUniform1f(locationMatrialShinness, 1);
 
-      glUniform3fv(locationLightPos,                          1, glm::value_ptr(glm::vec3(10, 10, 10)));
+      glUniform3fv(locationLightAmbient,   1, glm::value_ptr(glm::vec3(0.1, 0.1, 0.1)));
+      glUniform3fv(locationLightDiffuse,   1, glm::value_ptr(glm::vec3(1, 1, 1)));
+      glUniform3fv(locationLightSpecular,  1, glm::value_ptr(glm::vec3(1, 1, 1)));
+
+      glUniform4fv(locationLightPos,       1, glm::value_ptr(glm::vec4(10, 10, 10, 1)));
 
       glUniformMatrix3fv(locationMatricesNormal,              1, GL_FALSE, glm::value_ptr(N));
       glUniformMatrix4fv(locationMatricesModelView,           1, GL_FALSE, glm::value_ptr(view));

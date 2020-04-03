@@ -360,7 +360,7 @@ auto main() -> int {
 
     glUseProgram(program);
     {
-      glUniform3fv(locationMatrialAmbient,                    1, glm::value_ptr(glm::vec3(1, 1, 1)));
+      glUniform3fv(locationMatrialAmbient,                    1, glm::value_ptr(glm::vec3(0.2, 0.2, 0.2)));
       glUniformMatrix4fv(locationMatricesModelViewProjection, 1, GL_FALSE, glm::value_ptr(MVP));
 
       scene.draw();

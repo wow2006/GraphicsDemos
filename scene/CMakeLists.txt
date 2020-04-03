@@ -6,9 +6,11 @@ find_package(Assimp REQUIRED)
 set(
   scenes
   loadObj
+  ambientPerFragment
   diffuse
   diffusePerFragment
-  ambientPerFragment
+  specular
+  specularPerFragment
 )
 
 foreach(scene IN LISTS scenes)
