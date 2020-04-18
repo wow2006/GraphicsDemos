@@ -41,9 +41,10 @@ struct Vec3 {
 
 using Vec3f = Vec3<float>;
 
-auto parseObj(const std::string &filename, std::vector<Vec3f> &verts_, std::vector<std::vector<int> > &faces_) -> bool {
+static auto parseObj(const std::string &filename, std::vector<Vec3f> &verts_, std::vector<std::vector<int> > &faces_) -> bool {
   std::ifstream in(filename);
   if(in.fail()) {
+    std::cerr << "Can not parse \"" << filename << "\" file\n";
     return false;
   }
 
@@ -69,41 +70,54 @@ auto parseObj(const std::string &filename, std::vector<Vec3f> &verts_, std::vect
       faces_.push_back(f);
     }
   }
+
   return true;
 }
 
 constexpr auto SDL_SUCCESS = 0;
 
-auto main(int argc, char *argv[]) -> int {
+auto main(int argc, char* argv[]) -> int {
+  std::string inputFileName;
+  if(argc != 2) {
+    std::cerr << "Usage:\n\t./" << argv[0] << " input.ply\n";
+    return EXIT_FAILURE;
+  }
+  inputFileName = argv[1];
+
   if(SDL_Init(SDL_INIT_VIDEO) != SDL_SUCCESS) {
     std::cerr << "Can not initialize SDL\n";
     return EXIT_FAILURE;
   }
 
-  constexpr auto width = 640U;
-  constexpr auto height = 480U;
-  auto pWindow = SDL_CreateWindow("mimicOpenGL", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 480, 0);
+  constexpr auto WIDTH  = 640U;
+  constexpr auto HEIGHT = 480U;
+  constexpr auto WINDOW_FLAGS = 0;
+  auto pWindow   = SDL_CreateWindow("mimicOpenGL", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+                                    WIDTH, HEIGHT, WINDOW_FLAGS);
   auto pRenderer = SDL_CreateRenderer(pWindow, -1, 0);
-  auto pTexture = SDL_CreateTexture(pRenderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, 640, 480);
-  auto image = Image(width, height);
+  auto pTexture  = SDL_CreateTexture(pRenderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, 640, 480);
+  auto image     = Image(WIDTH, HEIGHT);
 
   std::vector<Vec3f> verts_;
   std::vector<std::vector<int> > faces_;
-  if(!parseObj("african_head.obj", verts_, faces_)) {
-    std::cerr << "Can not parse ply file\n";
+  if(!parseObj(inputFileName, verts_, faces_)) {
     return EXIT_FAILURE;
   }
 
-  for(int i = 0; i < verts_.size(); i++) {
+  for(uint32_t i = 0; i < verts_.size(); i++) {
     const auto &face = faces_[i];
-    for(int j = 0; j < 3; j++) {
-      Vec3f v0 = verts_[face[j]];
-      Vec3f v1 = verts_[face[(j + 1) % 3]];
-      int x0 = (v0.x + 1.) * width / 2.;
-      int y0 = (v0.y + 1.) * height / 2.;
-      int x1 = (v1.x + 1.) * width / 2.;
-      int y1 = (v1.y + 1.) * height / 2.;
-      mimicOpenGL::line4(x0, y0, x1, y1, {255, 255, 255}, image);
+    for(uint32_t j = 0; j < 3; j++) {
+      const Vec3f v0 = verts_[static_cast<uint32_t>(face[j])];
+      const Vec3f v1 = verts_[static_cast<uint32_t>(face[(j + 1) % 3])];
+      const int x0   = static_cast<int>((v0.x + 1.F) * WIDTH / 2.F);
+      const int y0   = static_cast<int>((v0.y + 1.F) * HEIGHT / 2.F);
+      const int x1   = static_cast<int>((v1.x + 1.F) * WIDTH / 2.F);
+      const int y1   = static_cast<int>((v1.y + 1.F) * HEIGHT / 2.F);
+      vec3_8u white;
+      white.x = 255;
+      white.y = 255;
+      white.z = 255;
+      mimicOpenGL::line4(x0, y0, x1, y1, white, image);
     }
   }
 
@@ -115,9 +129,9 @@ auto main(int argc, char *argv[]) -> int {
       bRunning = false;
     }
 
-    SDL_UpdateTexture(pTexture, nullptr, image.m_pData, width * sizeof(Uint32));
+    SDL_UpdateTexture(pTexture, nullptr, image.m_pData, WIDTH * sizeof(Uint32));
     SDL_RenderClear(pRenderer);
-    SDL_RenderCopy(pRenderer, pTexture, NULL, NULL);
+    SDL_RenderCopy(pRenderer, pTexture, nullptr, nullptr);
     SDL_RenderPresent(pRenderer);
   }
 
@@ -128,3 +142,4 @@ auto main(int argc, char *argv[]) -> int {
 
   return EXIT_SUCCESS;
 }
+

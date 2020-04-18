@@ -1,26 +1,21 @@
-# ${CMAKE_SOURCE_DIR}/cameras/CMakeLists.txt
-find_package(SDL2   REQUIRED)
-find_package(gl3w   REQUIRED)
-find_package(Assimp REQUIRED)
-
+# ${CMAKE_SOURCE_DIR}/shaders/materials/CMakeLists.txt
 set(
-  scenes
+  meterials
   loadObj
   ambientPerFragment
   diffuse
   diffusePerFragment
   specular
-  specularPerFragment
 )
 
-foreach(scene IN LISTS scenes)
+foreach(material IN LISTS meterials)
   add_executable(
-    ${scene}
-    ${scene}.cpp
+    ${material}
+    ${material}.cpp
   )
 
   target_link_libraries(
-    ${scene}
+    ${material}
     PRIVATE
     SDL2::SDL2
     options::options
