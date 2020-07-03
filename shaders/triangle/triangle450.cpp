@@ -72,8 +72,8 @@ public:
       throw std::runtime_error(fmt::format("Can not create window \"{}\"", SDL_GetError()));
     }
 
-    auto context = SDL_GL_CreateContext(m_pWindow);
-    if(context == nullptr) {
+    mContext = SDL_GL_CreateContext(m_pWindow);
+    if(mContext == nullptr) {
       throw std::runtime_error(fmt::format("Can not create context \"{}\"", SDL_GetError()));
     }
 
@@ -94,44 +94,34 @@ public:
     }
   }
 
-  void createProgram() {
-    const auto vertexShaderSource = readTextFile("shaders/simple_vertex.glsl");
-    const auto pVertexShaderSource = vertexShaderSource.data();
-    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &pVertexShaderSource, nullptr);
-    GLuint vsProgram = glCreateProgram();
-    glAttachShader(vsProgram, vertexShader);
-    glProgramParameteri(vsProgram, GL_PROGRAM_SEPARABLE, GL_TRUE);
-    glLinkProgram(vsProgram);
+  static GLuint CreateProgramFromShader(const std::string& shaderName, GLenum shaderType) {
+    const auto shaderSource = readTextFile(shaderName);
+    const auto pShaderSource = shaderSource.data();
+    GLuint shader = glCreateShader(shaderType);
+    glShaderSource(shader, 1, &pShaderSource, nullptr);
+    GLuint program = glCreateProgram();
+    glAttachShader(program, shader);
+    glProgramParameteri(program, GL_PROGRAM_SEPARABLE, GL_TRUE);
+    glLinkProgram(program);
+    glDeleteShader(shader);
 
     GLint program_linked;
-    glGetProgramiv(vsProgram, GL_LINK_STATUS, &program_linked);
+    glGetProgramiv(program, GL_LINK_STATUS, &program_linked);
     if (program_linked != GL_TRUE) {
         GLsizei log_length = 0;
         GLchar message[1024];
-        glGetProgramInfoLog(vsProgram, 1024, &log_length, message);
+        glGetProgramInfoLog(program, 1024, &log_length, message);
         throw std::runtime_error(message);
     }
+    return program;
+  }
 
-    const auto fragmentShaderSource = readTextFile("shaders/simple_fragment.glsl");
-    const auto pFragmentShaderSource = fragmentShaderSource.data();
-    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &pFragmentShaderSource, nullptr);
-    GLuint fsProgram = glCreateProgram();
-    glAttachShader(fsProgram, fragmentShader);
-    glProgramParameteri(fsProgram, GL_PROGRAM_SEPARABLE, GL_TRUE);
-    glLinkProgram(fsProgram);
-
-    glGetProgramiv(fsProgram, GL_LINK_STATUS, &program_linked);
-    if (program_linked != GL_TRUE) {
-        GLsizei log_length = 0;
-        GLchar message[1024];
-        glGetProgramInfoLog(fsProgram, 1024, &log_length, message);
-        throw std::runtime_error(message);
-    }
+  void createProgram() {
+    vsProgram = CreateProgramFromShader("shaders/simple_vertex.glsl" , GL_VERTEX_SHADER);
+    fsProgram = CreateProgramFromShader("shaders/simple_fragment.glsl", GL_FRAGMENT_SHADER);
 
     glCreateProgramPipelines(1, &mProgram);
-    glUseProgramStages(mProgram, GL_VERTEX_SHADER_BIT, vsProgram);
+    glUseProgramStages(mProgram, GL_VERTEX_SHADER_BIT,   vsProgram);
     glUseProgramStages(mProgram, GL_FRAGMENT_SHADER_BIT, fsProgram);
     glBindProgramPipeline(mProgram);
   }
@@ -156,10 +146,20 @@ public:
     }
   }
 
+  void cleanup() {
+    glDeleteProgram(vsProgram);
+    glDeleteProgram(fsProgram);
+    glDeleteProgramPipelines(1, &mProgram);
+    glDeleteVertexArrays(1, &mVAO);
+    SDL_GL_DeleteContext(mContext);
+    SDL_DestroyWindow(m_pWindow);
+  }
+
   SDL_Window *m_pWindow = nullptr;
-  GLuint mVAO;
-  GLuint mVBO;
-  GLuint mProgram;
+  SDL_GLContext mContext;
+  GLuint vsProgram, fsProgram;
+  GLuint mVAO = 0;
+  GLuint mProgram = 0;
 };
 
 int main() {
@@ -169,6 +169,7 @@ int main() {
     engine.createBuffers();
     engine.createProgram();
     engine.draw();
+    engine.cleanup();
   } catch(const std::runtime_error& error) {
     std::cerr << error.what() << '\n';
     return EXIT_FAILURE;
