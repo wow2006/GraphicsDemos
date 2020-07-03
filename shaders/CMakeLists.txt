@@ -5,4 +5,5 @@ find_package(Assimp REQUIRED)
 
 add_subdirectory(materials)
 add_subdirectory(lights)
+add_subdirectory(triangle)
 

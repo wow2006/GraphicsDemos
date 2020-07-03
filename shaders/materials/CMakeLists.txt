@@ -5,6 +5,7 @@ set(
   ambientPerFragment
   diffuse
   diffusePerFragment
+  diffusePerFragmentUBO
   specular
 )
 

@@ -89,9 +89,9 @@ auto main(int argc, char* argv[]) -> int {
     return EXIT_FAILURE;
   }
 
-  constexpr auto WIDTH  = 640U;
-  constexpr auto HEIGHT = 480U;
-  constexpr auto WINDOW_FLAGS = 0;
+  constexpr auto WIDTH        = 640U;
+  constexpr auto HEIGHT       = 480U;
+  constexpr auto WINDOW_FLAGS = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
   auto pWindow   = SDL_CreateWindow("mimicOpenGL", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                                     WIDTH, HEIGHT, WINDOW_FLAGS);
   auto pRenderer = SDL_CreateRenderer(pWindow, -1, 0);
