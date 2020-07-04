@@ -153,6 +153,7 @@ public:
     glDeleteVertexArrays(1, &mVAO);
     SDL_GL_DeleteContext(mContext);
     SDL_DestroyWindow(m_pWindow);
+    SDL_Quit();
   }
 
   SDL_Window *m_pWindow = nullptr;

@@ -23,8 +23,7 @@ constexpr auto SDL_SUCCESS = 0;
 inline auto readTextFile(const std::string& fileName) -> std::string {
   std::ifstream inputStream(fileName, std::ios::ate);
   if(!inputStream.is_open()) {
-    fmt::print(fmt::emphasis::bold | fg(fmt::color::red), "ERROR: Can nor read \"{0}\" file!\n", fileName);
-    return {};
+    throw std::runtime_error(fmt::format("ERROR: Can nor read \"{0}\" file!\n", fileName));
   }
   const auto fileSize = inputStream.tellg();
   inputStream.seekg(0, std::ios::beg);
@@ -40,15 +39,15 @@ static void DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity
   (void)severity;
   (void)length;
   (void)pUserParam;
-  constexpr std::array ignoreWarrings = {33350};
+  //constexpr std::array ignoreWarrings = {33350};
 
-  if(std::any_of(std::cbegin(ignoreWarrings), std::cend(ignoreWarrings), [source](auto current) -> bool {
-       return static_cast<int>(source) == current;
-     })) {
-    return;
-  }
+  //if(std::any_of(std::cbegin(ignoreWarrings), std::cend(ignoreWarrings), [source](auto current) -> bool {
+  //     return static_cast<int>(source) == current;
+  //   })) {
+  //  return;
+  //}
 
-  std::cout << source << " : " << message << '\n';
+  fmt::print(fg(fmt::color::red), "Error: {0} - {1}\n", source, message);
 }
 
 class Engine final {
@@ -73,8 +72,8 @@ public:
       throw std::runtime_error(fmt::format("Can not create window \"{}\"", SDL_GetError()));
     }
 
-    auto context = SDL_GL_CreateContext(m_pWindow);
-    if(context == nullptr) {
+    mContext = SDL_GL_CreateContext(m_pWindow);
+    if(mContext == nullptr) {
       throw std::runtime_error(fmt::format("Can not create context \"{}\"", SDL_GetError()));
     }
 
@@ -85,6 +84,7 @@ public:
     // Set OpenGL Debug Callback
     if(glDebugMessageCallback) {
       std::cout << "Debug is enabled\n";
+      glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
       glDebugMessageCallback(DebugCallback, nullptr);
     }
 
@@ -94,48 +94,56 @@ public:
     }
   }
 
-  void createBuffer() {
-    glCreateVertexArrays(1, &mVAO);
-    glBindVertexArray(mVAO);
+  static GLuint CreateProgramFromShader(const std::string& shaderName, GLenum shaderType) {
+    const auto shaderSource = readTextFile(shaderName);
+    const auto pShaderSource = shaderSource.data();
+    GLuint shader = glCreateShader(shaderType);
+    glShaderSource(shader, 1, &pShaderSource, nullptr);
+    GLuint program = glCreateProgram();
+    glAttachShader(program, shader);
+    glProgramParameteri(program, GL_PROGRAM_SEPARABLE, GL_TRUE);
+    glLinkProgram(program);
+    glDeleteShader(shader);
 
-    constexpr std::array data = {
-     0.25f, -0.25f, 0.5f, 1.0f,
-    -0.25f, -0.25f, 0.5f, 1.0f,
-     0.25f,  0.25f, 0.5f, 1.0f
-    };
-
-    glCreateBuffers(1, &mVBO);
-    glNamedBufferStorage(mVBO, sizeof(float) * data.size(), nullptr, GL_MAP_WRITE_BIT);
-    glBindBuffer(GL_ARRAY_BUFFER, mVBO);
-    void* ptr = glMapNamedBuffer(mVBO, GL_WRITE_ONLY);
-    std::memcpy(ptr, data.data(), sizeof(float) * data.size());
-    glUnmapNamedBuffer(mVBO);
-
-    glVertexArrayVertexBuffer(mVAO, 0, 0, sizeof(float) * 4, 0);
-    glVertexArrayAttribFormat(mVAO, 0, 4, GL_FLOAT, GL_FALSE, 0);
-    glEnableVertexArrayAttrib(mVAO, 0);
-
-    glBindVertexArray(0);
+    GLint program_linked;
+    glGetProgramiv(program, GL_LINK_STATUS, &program_linked);
+    if (program_linked != GL_TRUE) {
+        GLsizei log_length = 0;
+        GLchar message[1024];
+        glGetProgramInfoLog(program, 1024, &log_length, message);
+        throw std::runtime_error(message);
+    }
+    return program;
   }
 
   void createProgram() {
-    const auto vertexShaderSource = readTextFile("shaders/simple_vertex.glsl");
-    const auto pVertexShaderSource = vertexShaderSource.data();
-    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &pVertexShaderSource, nullptr);
-    GLuint vsProgram = glCreateProgram();
-    glAttachShader(vsProgram, vertexShader);
-    glProgramParameteri(vsProgram, GL_PROGRAM_SEPARABLE, GL_TRUE);
-    glLinkProgram(vsProgram);
+    vsProgram = CreateProgramFromShader("shaders/unifrom_vertex.glsl" , GL_VERTEX_SHADER);
+    fsProgram = CreateProgramFromShader("shaders/simple_fragment.glsl", GL_FRAGMENT_SHADER);
 
-    const auto fragmentShaderSource = readTextFile("shaders/simple_fragment.glsl");
-    const auto pFragmentShaderSource = fragmentShaderSource.data();
-    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &pFragmentShaderSource, nullptr);
-    GLuint fsProgram = glCreateProgram();
-    glAttachShader(fsProgram, fragmentShader);
-    glProgramParameteri(fsProgram, GL_PROGRAM_SEPARABLE, GL_TRUE);
-    glLinkProgram(fsProgram);
+    glCreateProgramPipelines(1, &mProgram);
+    glUseProgramStages(mProgram, GL_VERTEX_SHADER_BIT,   vsProgram);
+    glUseProgramStages(mProgram, GL_FRAGMENT_SHADER_BIT, fsProgram);
+    glBindProgramPipeline(mProgram);
+  }
+
+  void createBuffers() {
+    glCreateVertexArrays(1, &mVAO);
+    glBindVertexArray(mVAO);
+
+    constexpr float cPositions[] = {
+       0.25, -0.25, 0.5, 1.0,
+      -0.25, -0.25, 0.5, 1.0,
+       0.25,  0.25, 0.5, 1.0
+    };
+
+    glGenBuffers(1, &mUBO);
+    glBindBuffer(GL_UNIFORM_BUFFER, mUBO);
+    glBufferData(GL_UNIFORM_BUFFER, sizeof(cPositions), cPositions, GL_STATIC_DRAW);
+
+    constexpr GLint bufferIndex = 0;
+    glBindBufferBase(GL_UNIFORM_BUFFER, bufferIndex, mUBO);
+    const auto positionLocation = glGetUniformLocation(vsProgram, "uPositions");
+    glUniformBlockBinding(vsProgram, positionLocation, bufferIndex);
   }
 
   void draw() {
@@ -148,27 +156,38 @@ public:
         }
       }
 
-      glBindVertexArray(mVAO);
-      glBindBuffer(GL_ARRAY_BUFFER, mVBO);
-      //glDrawArrays(GL_TRIANGLES, 0, 3);
-      glBindBuffer(GL_ARRAY_BUFFER, 0);
-      glBindVertexArray(0);
+      glDrawArrays(GL_TRIANGLES, 0, 3);
+      SDL_GL_SwapWindow(m_pWindow);
     }
   }
 
+  void cleanup() {
+    glDeleteProgram(vsProgram);
+    glDeleteProgram(fsProgram);
+    glDeleteProgramPipelines(1, &mProgram);
+    glDeleteVertexArrays(1, &mVAO);
+    SDL_GL_DeleteContext(mContext);
+    SDL_DestroyWindow(m_pWindow);
+    SDL_Quit();
+  }
+
   SDL_Window *m_pWindow = nullptr;
-  GLuint mVAO;
-  GLuint mVBO;
-  GLuint mProgram;
+  SDL_GLContext mContext;
+  GLuint vsProgram;
+  GLuint fsProgram;
+  GLuint mVAO = 0;
+  GLuint mUBO = 0;
+  GLuint mProgram = 0;
 };
 
 int main() {
   try {
     Engine engine;
     engine.initialize();
-    engine.createBuffer();
     engine.createProgram();
+    engine.createBuffers();
     engine.draw();
+    engine.cleanup();
   } catch(const std::runtime_error& error) {
     std::cerr << error.what() << '\n';
     return EXIT_FAILURE;
