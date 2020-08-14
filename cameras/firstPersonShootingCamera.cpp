@@ -64,7 +64,7 @@ static void drawText(const char *pMessage, glm::vec2 topLeft) {
     std::exit(EXIT_FAILURE);
   }
 
-  auto pTitleFont = TTF_OpenFont("font/DroidSansMono.ttf", 48);
+  static auto pTitleFont = TTF_OpenFont("font/DroidSansMono.ttf", 48);
   if(pTitleFont == nullptr) {
     std::string ttferr = TTF_GetError();
     std::cerr << "Can not load \"DroidSansMono.ttf\": " << ttferr << '\n';
