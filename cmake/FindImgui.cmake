@@ -3,7 +3,7 @@ if(TARGET Imgui::SDL_OpenGL)
   return()
 endif()
 
-set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/Engine/thirdparty/imgui/)
+set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/thirdparty/imgui/)
 
 # ========================
 # IMGUI Core

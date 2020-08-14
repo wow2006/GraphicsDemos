@@ -1,50 +1,43 @@
 #pragma once
+// SDL
+#include <SDL2/SDL.h>
 // GLM
 #include <glm/vec3.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/euler_angles.hpp>
 
-constexpr auto g_fSpeed = 0.1F;
-
-constexpr auto UP = glm::vec3{0, 1, 0};
+[[maybe_unused]] constexpr auto SYSTEM_UP = glm::vec3{0, 1, 0};
 
 struct FPSCamera {
 public:
-  void walk(bool bForward);
-
-  void strafe();
-
-  void lift();
-
-  void update([[maybe_unused]] float delta);
+  void update([[maybe_unused]] float delta, const uint8_t* pStatus);
 
   glm::mat4 view() const;
 
 private:
-  glm::vec3 mDeltas;
-  glm::vec3 mPosition = { 0, 0,-1};
-  glm::vec3 mRotation;
+  glm::vec3 mPosition{10, 10, 10};
+  glm::vec3 mTarget{};
+  glm::vec3 mUp{0, 1, 0};
 
-  glm::mat4 mView;
 };
 
-void FPSCamera::walk(bool bForward) {
-  mDeltas.x += g_fSpeed * ((bForward) ? 1 : -1);
+void FPSCamera::update([[maybe_unused]] float delta, const uint8_t* pStatus) {
+    const auto forward = glm::normalize(mTarget - mPosition);
+    if(pStatus[SDL_SCANCODE_W]) {
+      mTarget   += forward;
+      mPosition += forward;
+    }
+    if(pStatus[SDL_SCANCODE_S]) {
+      mTarget   -= forward;
+      mPosition -= forward;
+    }
+    if(pStatus[SDL_SCANCODE_A]) {
+    }
+    if(pStatus[SDL_SCANCODE_D]) {
+    }
 }
 
-void FPSCamera::strafe() {
-  //mDeltas.y += (g_fSpeed * deltaTime);
+inline glm::mat4 FPSCamera::view() const {
+  return glm::lookAt(mPosition, mTarget, mUp);
 }
-
-void FPSCamera::lift() {
-  //mDeltas.z += (g_fSpeed * deltaTime);
-}
-
-void FPSCamera::update([[maybe_unused]] float delta) {
-  mPosition.z += mDeltas.x * delta;
-  mDeltas = {0, 0, 0};
-  mView = glm::lookAt(mPosition, {0, 0, 0}, UP);
-}
-
-inline glm::mat4 FPSCamera::view() const { return mView; }
 

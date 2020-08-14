@@ -10,21 +10,23 @@
 #include <string_view>
 // GL3W
 #include <GL/gl3w.h>
-// SDL
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_opengl.h>
-#include <SDL2/SDL_ttf.h>
 // GLM
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/std_based_type.hpp>
+// IMGUI
+#include <imgui_impl_sdl.h>
+#include <imgui_impl_opengl3.h>
 // Internal
 #include "firstPersonShootingCamera.hpp"
 
-static constexpr auto GL3D_SUCCESS = 0;
-static constexpr auto SDL_SUCCESS  = 0;
+[[maybe_unused]] static constexpr auto GL3D_SUCCESS = 0;
+[[maybe_unused]] static constexpr auto SDL_SUCCESS = 0;
 
 [[maybe_unused]] static constexpr auto SDL_IMMEDIATE_UPDATE = 0;
 [[maybe_unused]] static constexpr auto SDL_SYNCHRONIZED_UPDATE = 1;
 [[maybe_unused]] static constexpr auto SDL_ADAPTIVE_UPDATE = -1;
+
+static constexpr auto FrameTime = static_cast<uint32_t>(1000.F / 60.F);
 
 static void DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const GLvoid *pUserParam) {
   (void)type;
@@ -58,55 +60,6 @@ static auto parseProgramOptions(int argc, char **argv) -> std::optional<std::pai
   return std::make_pair(std::stoi(argv[1]), std::stoi(argv[2]));
 }
 
-static void drawText(const char *pMessage, glm::vec2 topLeft) {
-  if(TTF_Init() != SDL_SUCCESS) {
-    std::cerr << "Can not Initialize SDL2\n";
-    std::exit(EXIT_FAILURE);
-  }
-
-  static auto pTitleFont = TTF_OpenFont("font/DroidSansMono.ttf", 48);
-  if(pTitleFont == nullptr) {
-    std::string ttferr = TTF_GetError();
-    std::cerr << "Can not load \"DroidSansMono.ttf\": " << ttferr << '\n';
-    std::exit(EXIT_FAILURE);
-  }
-
-  SDL_Color fg = {255, 128, 0, 255};
-  auto pSurface = TTF_RenderText_Blended(pTitleFont, pMessage, fg);
-  if(pSurface == nullptr) {
-    std::string ttferr = TTF_GetError();
-    std::cerr << "Can not create Blenderd Texture: " << ttferr << '\n';
-    std::exit(EXIT_FAILURE);
-  }
-
-  GLuint colors = pSurface->format->BytesPerPixel;
-  GLuint format;
-  if(colors == 4) {  // alpha
-    if(pSurface->format->Rmask == 0x000000ff)
-      format = GL_RGBA;
-    else
-      format = GL_BGRA;
-  } else {  // no alpha
-    if(pSurface->format->Rmask == 0x000000ff)
-      format = GL_RGB;
-    else
-      format = GL_BGR;
-  }
-
-  auto pPixels = reinterpret_cast<GLubyte *>(pSurface->pixels);
-  GLuint hTex;
-  glGenTextures(1, &hTex);
-  glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, hTex);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, pSurface->w, pSurface->h, 0, format, GL_UNSIGNED_BYTE, pPixels);
-  glGenerateMipmap(GL_TEXTURE_2D);
-  SDL_FreeSurface(pSurface);
-}
-
 auto main(int argc, char *argv[]) -> int {
   if(SDL_Init(SDL_INIT_VIDEO) != 0) {
     std::cerr << "Can not initialize SDL2\n";
@@ -115,8 +68,8 @@ auto main(int argc, char *argv[]) -> int {
 
   SDL_LogSetOutputFunction(LogOutputFunction, nullptr);
 
-  int width  = 640;
-  int height = 480;
+  int width  = 1280;
+  int height = 720;
   if(const auto args = parseProgramOptions(argc, argv); args) {
     constexpr auto firstScreenIndex = 0;
     SDL_DisplayMode displayMode;
@@ -161,6 +114,14 @@ auto main(int argc, char *argv[]) -> int {
     std::cout << "Debug is enabled\n";
     glDebugMessageCallback(DebugCallback, nullptr);
   }
+
+  IMGUI_CHECKVERSION();
+  ImGui::CreateContext();
+  ImGuiIO &io = ImGui::GetIO();
+  (void)io;
+
+  ImGui_ImplSDL2_InitForOpenGL(pWindow, context);
+  ImGui_ImplOpenGL3_Init("#version 450 core");
 
   GLuint vao = 0;
   std::array<GLuint, 3> vbo;
@@ -577,33 +538,48 @@ auto main(int argc, char *argv[]) -> int {
 
   FPSCamera camera;
 
-  char message[512] = "HelloWorld!";
+  glm::vec3 cameraPosition{10, 10, 10}, cameraTarget{}, cameraUp{0, 1, 0};
 
   GLuint query[2];
   glGenQueries(2, query);
   float delta = 0.F;
+  float deltaCPUs[512];
+  float deltaGPUs[512];
   auto bRunning = true;
   while(bRunning) {
     SDL_Event event;
     while(SDL_PollEvent(&event) > 0) {
+      ImGui_ImplSDL2_ProcessEvent(&event);
       switch(event.type) {
       case SDL_QUIT: bRunning = false; break;
       case SDL_WINDOWEVENT: break;
-      case SDL_KEYUP:
-      case SDL_KEYDOWN: break;
       case SDL_MOUSEWHEEL: break;
-      case SDL_MOUSEBUTTONDOWN:
-      case SDL_MOUSEBUTTONUP: {
-        const auto mouseButtonEvent = event.button;
-        std::cout << "(" << mouseButtonEvent.x << ", " << mouseButtonEvent.y << ")\n";
-      } break;
+      case SDL_MOUSEBUTTONDOWN: break;
+      case SDL_MOUSEBUTTONUP: break;
       case SDL_MOUSEMOTION: break;
       }
     }
+
     glQueryCounter(query[0], GL_TIMESTAMP);
     const auto startTime = std::chrono::high_resolution_clock::now();
 
-    camera.update(delta);
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplSDL2_NewFrame(pWindow);
+    ImGui::NewFrame();
+
+    ImGui::Begin("Camera");
+    {
+      ImGui::DragFloat3("Position", reinterpret_cast<float*>(&cameraPosition));
+      ImGui::DragFloat3("Target",   reinterpret_cast<float*>(&cameraTarget));
+      ImGui::DragFloat3("Up",       reinterpret_cast<float*>(&cameraUp));
+
+      ImGui::PlotLines("CPU", deltaCPUs, IM_ARRAYSIZE(deltaCPUs));
+      ImGui::PlotLines("GPU", deltaGPUs, IM_ARRAYSIZE(deltaGPUs));
+    }
+    ImGui::End();
+
+    const auto pKeyStatus = SDL_GetKeyboardState(nullptr);
+    camera.update(delta, pKeyStatus);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     {
@@ -611,17 +587,18 @@ auto main(int argc, char *argv[]) -> int {
       {
         glBindVertexArray(vao);
         static GLint viewAttribPosition = glGetUniformLocation(program, "MVP");
-        const auto projection = glm::perspective(glm::radians(60.F), 4.F / 3.F, 0.1F, 1000.F);
-        const auto view = glm::lookAt(glm::vec3(10, 10, 10), glm::vec3{}, glm::vec3(0, 1, 0));
-        const auto MVP = projection * view;
+        const auto projection = glm::perspective(glm::radians(60.F), static_cast<float>(width) / static_cast<float>(height), 0.1F, 1000.F);
+        const auto MVP = projection * camera.view();
         glUniformMatrix4fv(viewAttribPosition, 1, GL_FALSE, glm::value_ptr(MVP));
 
         glDrawArrays(GL_TRIANGLES, 0, 42);
       }
       glUseProgram(0);
-
-      drawText(message, glm::vec2{0, 0});
     }
+
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
     SDL_GL_SwapWindow(pWindow);
 
     glQueryCounter(query[1], GL_TIMESTAMP);
@@ -640,11 +617,24 @@ auto main(int argc, char *argv[]) -> int {
     glGetQueryObjectui64v(query[0], GL_QUERY_RESULT, &startTimeGL);
     glGetQueryObjectui64v(query[1], GL_QUERY_RESULT, &stopTimeGL);
 
-    snprintf(message, 512, "Frame %+3.3F/%+3.3F ms", delta, static_cast<float>(stopTimeGL - startTimeGL) / 1000000.F);
+    const auto deltaGPU = static_cast<double>(stopTimeGL - startTimeGL) / 1000000.0;
+    if(delta < FrameTime) {
+      SDL_Delay(FrameTime - static_cast<uint32_t>(delta));
+    }
+    std::copy(std::begin(deltaCPUs), std::end(deltaCPUs)-1, std::begin(deltaCPUs)+1);
+    deltaCPUs[0] = delta;
+
+    std::copy(std::begin(deltaGPUs), std::end(deltaGPUs)-1, std::begin(deltaGPUs)+1);
+    deltaGPUs[0] = static_cast<float>(deltaGPU);
+    //snprintf(message, 512, "Frame %+3.3F/%+3.3F ms", static_cast<double>(delta), static_cast<double>(stopTimeGL - startTimeGL) / 1000000.0);
   }
 
   glBindVertexArray(0);
   glDeleteVertexArrays(1, &vao);
+
+  ImGui_ImplOpenGL3_Shutdown();
+  ImGui_ImplSDL2_Shutdown();
+  ImGui::DestroyContext();
 
   SDL_GL_DeleteContext(context);
   SDL_DestroyWindow(pWindow);
