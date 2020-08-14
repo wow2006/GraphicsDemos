@@ -1,10 +1,12 @@
 # GraphicsDemos
 Collection of simple graphics demos
 
-![](https://github.com/wow2006/GraphicsDemos/workflows/GCC/badge.svg)
-![](https://github.com/wow2006/GraphicsDemos/workflows/CLang/badge.svg)
-
+# GraphicsDemos
+Collection of simple graphics demos
 - [Window Creation](window)
 - [Create OpenGL Context](opengl)
-- WIP [Create Vulkan Context](vulkan)
+- `TODO` [Create Vulkan Context](vulkan)
+- `WIP` [Create different type of cameras](cameras)
+- `WIP` [Common data structures in graphics](datastructures)
 - [Create different type of cameras](cameras)
+
