@@ -1,11 +1,13 @@
 // This is an open source non-commercial project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 // STL
-#include <algorithm>
+#define NOMINMAX
 #include <array>
-#include <optional>
+#include <string>
 #include <cstdlib>
+#include <optional>
 #include <iostream>
+#include <algorithm>
 #include <string_view>
 // GL3W
 #include <GL/gl3w.h>
