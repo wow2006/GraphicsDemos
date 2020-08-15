@@ -10,34 +10,44 @@
 
 struct FPSCamera {
 public:
-  void update([[maybe_unused]] float delta, const uint8_t* pStatus);
+  void updateRotation(const glm::vec3& angles);
+
+  void update(float delta, const uint8_t *pStatus);
 
   glm::mat4 view() const;
 
-private:
-  glm::vec3 mPosition{10, 10, 10};
+  glm::vec3 mSpeed{0.5, 0.5, 0.5};
+  glm::vec3 mPosition{0, 0, 10};
   glm::vec3 mTarget{};
   glm::vec3 mUp{0, 1, 0};
 
+  glm::mat4 rotationMatrix;
 };
 
-void FPSCamera::update([[maybe_unused]] float delta, const uint8_t* pStatus) {
-    const auto forward = glm::normalize(mTarget - mPosition);
-    if(pStatus[SDL_SCANCODE_W]) {
-      mTarget   += forward;
-      mPosition += forward;
-    }
-    if(pStatus[SDL_SCANCODE_S]) {
-      mTarget   -= forward;
-      mPosition -= forward;
-    }
-    if(pStatus[SDL_SCANCODE_A]) {
-    }
-    if(pStatus[SDL_SCANCODE_D]) {
-    }
+void FPSCamera::updateRotation(const glm::vec3& angles) {
+  const auto slowAngles = angles * mSpeed;
+  rotationMatrix = glm::yawPitchRoll(slowAngles.x, slowAngles.z, 0.F);
 }
 
-inline glm::mat4 FPSCamera::view() const {
-  return glm::lookAt(mPosition, mTarget, mUp);
+void FPSCamera::update(float delta, const uint8_t *pStatus) {
+  const auto forward = glm::normalize(mTarget - mPosition);
+  if(pStatus[SDL_SCANCODE_W]) {
+    mTarget   += forward * delta * mSpeed.x;
+    mPosition += forward * delta * mSpeed.x;
+  }
+  if(pStatus[SDL_SCANCODE_S]) {
+    mTarget   -= forward * delta * mSpeed.x;
+    mPosition -= forward * delta * mSpeed.x;
+  }
+  const auto right = glm::normalize(glm::cross(forward, SYSTEM_UP));
+  if(pStatus[SDL_SCANCODE_D]) {
+    mTarget   += right * delta * mSpeed.x;
+    mPosition += right * delta * mSpeed.x;
+  }
+  if(pStatus[SDL_SCANCODE_A]) {
+    mTarget   -= right * delta * mSpeed.x;
+    mPosition -= right * delta * mSpeed.x;
+  }
 }
 
+inline glm::mat4 FPSCamera::view() const { return rotationMatrix * glm::lookAt(mPosition, mTarget, mUp); }

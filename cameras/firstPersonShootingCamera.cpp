@@ -3,6 +3,7 @@
 // STL
 #include <array>
 #include <chrono>
+#include <string>
 #include <cstdlib>
 #include <optional>
 #include <iostream>
@@ -459,7 +460,6 @@ auto main(int argc, char *argv[]) -> int {
       glEnableVertexAttribArray(2);
       glVertexAttribPointer(2, 3, GL_FLOAT, false, 0, nullptr);
     }
-    //glBindVertexArray(0);
   }
 
   GLuint program = 0;
@@ -538,7 +538,10 @@ auto main(int argc, char *argv[]) -> int {
 
   FPSCamera camera;
 
-  glm::vec3 cameraPosition{10, 10, 10}, cameraTarget{}, cameraUp{0, 1, 0};
+  bool mouseButtonsStatus[3] {false, false, false};
+  glm::vec2 mouseButtonsPositionInitialize[3] = {};
+  glm::vec2 mouseButtonsPositionMotion[3]     = {};
+  glm::vec3 mouseButtonsPositionAngles     = {};
 
   GLuint query[2];
   glGenQueries(2, query);
@@ -554,9 +557,45 @@ auto main(int argc, char *argv[]) -> int {
       case SDL_QUIT: bRunning = false; break;
       case SDL_WINDOWEVENT: break;
       case SDL_MOUSEWHEEL: break;
-      case SDL_MOUSEBUTTONDOWN: break;
-      case SDL_MOUSEBUTTONUP: break;
-      case SDL_MOUSEMOTION: break;
+      case SDL_MOUSEBUTTONDOWN: {
+        const auto& button = event.button;
+        mouseButtonsStatus[0] = (button.button == SDL_BUTTON_LEFT)   ? true : mouseButtonsStatus[0];
+        mouseButtonsStatus[1] = (button.button == SDL_BUTTON_MIDDLE) ? true : mouseButtonsStatus[1];
+        mouseButtonsStatus[2] = (button.button == SDL_BUTTON_RIGHT)  ? true : mouseButtonsStatus[2];
+        for(uint32_t i = 0; i < 3; ++i) {
+          if(mouseButtonsStatus[i]) {
+            mouseButtonsPositionInitialize[i] = {button.x, button.y};
+          }
+        }
+      }
+      break;
+      case SDL_MOUSEBUTTONUP: {
+        const auto& button = event.button;
+        mouseButtonsStatus[0] = (button.button == SDL_BUTTON_LEFT)   ? false : mouseButtonsStatus[0];
+        mouseButtonsStatus[1] = (button.button == SDL_BUTTON_MIDDLE) ? false : mouseButtonsStatus[1];
+        mouseButtonsStatus[2] = (button.button == SDL_BUTTON_RIGHT)  ? false : mouseButtonsStatus[2];
+        for(uint32_t i = 0; i < 3; ++i) {
+          if(mouseButtonsStatus[i]) {
+            mouseButtonsPositionInitialize[i] = {button.x, button.y};
+          }
+        }
+      }
+      break;
+      case SDL_MOUSEMOTION: {
+        const auto& motion = event.motion;
+        for(uint32_t i = 0; i < 3; ++i) {
+          if(mouseButtonsStatus[i]) {
+            mouseButtonsPositionMotion[i] = {motion.x, motion.y};
+          }
+        }
+        if(mouseButtonsStatus[0]) {
+          mouseButtonsPositionAngles.x = (motion.x-mouseButtonsPositionInitialize[0].x) / width  * -90.F;
+          mouseButtonsPositionAngles.z = (motion.y-mouseButtonsPositionInitialize[0].y) / height * -90.F;
+        }
+        if(mouseButtonsStatus[2]) {
+        }
+      }
+      break;
       }
     }
 
@@ -569,23 +608,35 @@ auto main(int argc, char *argv[]) -> int {
 
     ImGui::Begin("Camera");
     {
-      ImGui::DragFloat3("Position", reinterpret_cast<float*>(&cameraPosition));
-      ImGui::DragFloat3("Target",   reinterpret_cast<float*>(&cameraTarget));
-      ImGui::DragFloat3("Up",       reinterpret_cast<float*>(&cameraUp));
+      ImGui::DragFloat3("Position", reinterpret_cast<float*>(&camera.mPosition));
+      ImGui::DragFloat3("Target",   reinterpret_cast<float*>(&camera.mTarget));
+      ImGui::DragFloat3("Up",       reinterpret_cast<float*>(&camera.mUp));
 
       ImGui::PlotLines("CPU", deltaCPUs, IM_ARRAYSIZE(deltaCPUs));
       ImGui::PlotLines("GPU", deltaGPUs, IM_ARRAYSIZE(deltaGPUs));
+
+      ImGui::Checkbox("Left",   &mouseButtonsStatus[0]);
+      ImGui::Checkbox("Middle", &mouseButtonsStatus[1]);
+      ImGui::Checkbox("Right",  &mouseButtonsStatus[2]);
+
+      ImGui::DragFloat2("Left Init",  reinterpret_cast<float*>(&mouseButtonsPositionInitialize[0]));
+      ImGui::DragFloat2("Left Motion",  reinterpret_cast<float*>(&mouseButtonsPositionMotion[0]));
+      ImGui::DragFloat("Left Angle",  reinterpret_cast<float*>(&mouseButtonsPositionAngles.x));
+
+      ImGui::DragFloat2("Right Init", reinterpret_cast<float*>(&mouseButtonsPositionInitialize[2]));
+      ImGui::DragFloat2("Right Motion", reinterpret_cast<float*>(&mouseButtonsPositionMotion[2]));
+      ImGui::DragFloat("Right Angle",  reinterpret_cast<float*>(&mouseButtonsPositionAngles.z));
     }
     ImGui::End();
 
     const auto pKeyStatus = SDL_GetKeyboardState(nullptr);
+    camera.updateRotation(mouseButtonsPositionAngles);
     camera.update(delta, pKeyStatus);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     {
       glUseProgram(program);
       {
-        glBindVertexArray(vao);
         static GLint viewAttribPosition = glGetUniformLocation(program, "MVP");
         const auto projection = glm::perspective(glm::radians(60.F), static_cast<float>(width) / static_cast<float>(height), 0.1F, 1000.F);
         const auto MVP = projection * camera.view();
