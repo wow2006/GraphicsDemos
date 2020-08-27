@@ -4,6 +4,7 @@
 #include <array>
 #include <chrono>
 #include <cstdlib>
+#include <numeric>
 #include <optional>
 #include <iostream>
 #include <algorithm>
@@ -12,6 +13,7 @@
 #include <GL/gl3w.h>
 // GLM
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/euler_angles.hpp>
 #include <glm/gtx/std_based_type.hpp>
 // IMGUI
 #include <imgui_impl_sdl.h>
@@ -27,6 +29,22 @@
 [[maybe_unused]] static constexpr auto SDL_ADAPTIVE_UPDATE = -1;
 
 static constexpr auto FrameTime = static_cast<uint32_t>(1000.F / 60.F);
+
+auto FPSCamera::filterMouseMoves(glm::vec2 delta) -> glm::vec2 {
+  std::copy(std::cbegin(mMouseHistory), std::cend(mMouseHistory)-1, std::begin(mMouseHistory)+1);
+  mMouseHistory.front() = delta;
+
+  float averageTotal = 0.0F;
+  glm::vec2 averageMotion = {0, 0};
+  glm::vec2 weight = {1, 1};
+  for(const auto& mouse : mMouseHistory) {
+    averageMotion += mouse * weight;
+    averageTotal  += 1.0F * weight.x;
+    weight        *= MOUSE_FILTER_WEIGHT;
+  }
+  return averageMotion / averageTotal;
+}
+
 
 static void DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const GLvoid *pUserParam) {
   (void)type;
@@ -538,13 +556,25 @@ auto main(int argc, char *argv[]) -> int {
 
   FPSCamera camera;
 
+  enum MOUSE_BUTTONS {
+    MOUSE_LEFT = 0,
+    MOUSE_MIDDLE,
+    MOUSE_RIGHT,
+    MOUSE_SIZE
+  };
+
   glm::vec3 cameraPosition{10, 10, 10}, cameraTarget{}, cameraUp{0, 1, 0};
+  std::array<int, MOUSE_SIZE> mouseButton = {};
+  std::array<glm::vec2, MOUSE_SIZE> mousePositions = {};
+  glm::vec2 leftDelta = {};
+
+  bool smoothMouseFilter = false;
 
   GLuint query[2];
   glGenQueries(2, query);
   float delta = 0.F;
-  float deltaCPUs[512];
-  float deltaGPUs[512];
+  float deltaCPUs[512] = {0};
+  float deltaGPUs[512] = {0};
   auto bRunning = true;
   while(bRunning) {
     SDL_Event event;
@@ -554,9 +584,51 @@ auto main(int argc, char *argv[]) -> int {
       case SDL_QUIT: bRunning = false; break;
       case SDL_WINDOWEVENT: break;
       case SDL_MOUSEWHEEL: break;
-      case SDL_MOUSEBUTTONDOWN: break;
-      case SDL_MOUSEBUTTONUP: break;
-      case SDL_MOUSEMOTION: break;
+      case SDL_MOUSEBUTTONDOWN: {
+        const auto mouseButtonType = event.button;
+        if(mouseButtonType.button == SDL_BUTTON_LEFT) {
+          mouseButton[MOUSE_LEFT] = 1;
+          mousePositions[MOUSE_LEFT] = {mouseButtonType.x, mouseButtonType.y};
+        }
+        if(mouseButtonType.button == SDL_BUTTON_MIDDLE) {
+          mouseButton[MOUSE_MIDDLE] = 1;
+          mousePositions[MOUSE_MIDDLE] = {mouseButtonType.x, mouseButtonType.y};
+        }
+        if(mouseButtonType.button == SDL_BUTTON_RIGHT) {
+          mouseButton[MOUSE_RIGHT] = 1;
+          mousePositions[MOUSE_RIGHT] = {mouseButtonType.x, mouseButtonType.y};
+        }
+        break;
+      }
+      case SDL_MOUSEBUTTONUP: {
+        const auto mouseButtonType = event.button;
+        if(mouseButtonType.button == SDL_BUTTON_LEFT) {
+          mouseButton[MOUSE_LEFT] = 0;
+        }
+        if(mouseButtonType.button == SDL_BUTTON_MIDDLE) {
+          mouseButton[MOUSE_MIDDLE] = 0;
+        }
+        if(mouseButtonType.button == SDL_BUTTON_RIGHT) {
+          mouseButton[MOUSE_RIGHT] = 0;
+        }
+        break;
+      }
+      case SDL_MOUSEMOTION: {
+        const auto mouseMotion = event.motion;
+        if(mouseButton[MOUSE_LEFT]) {
+          leftDelta =
+            glm::vec2(mouseMotion.x, mouseMotion.y) - mousePositions[MOUSE_LEFT];
+          if(smoothMouseFilter) {
+            leftDelta = camera.filterMouseMoves(leftDelta);
+          }
+          leftDelta /= width;
+        }
+        if(mouseButton[MOUSE_MIDDLE]) {
+        }
+        if(mouseButton[MOUSE_RIGHT]) {
+        }
+        break;
+      }
       }
     }
 
@@ -569,12 +641,32 @@ auto main(int argc, char *argv[]) -> int {
 
     ImGui::Begin("Camera");
     {
+      ImGui::Checkbox("Enable smooth mouse filter", &smoothMouseFilter);
+
+      ImGui::NewLine();
+
       ImGui::DragFloat3("Position", reinterpret_cast<float*>(&cameraPosition));
       ImGui::DragFloat3("Target",   reinterpret_cast<float*>(&cameraTarget));
       ImGui::DragFloat3("Up",       reinterpret_cast<float*>(&cameraUp));
 
+      ImGui::NewLine();
+
+      ImGui::DragFloat2("Left",   reinterpret_cast<float*>(&mousePositions[MOUSE_LEFT]));
+      ImGui::DragFloat2("Middle", reinterpret_cast<float*>(&mousePositions[MOUSE_MIDDLE]));
+      ImGui::DragFloat2("Right",  reinterpret_cast<float*>(&mousePositions[MOUSE_RIGHT]));
+
+      ImGui::NewLine();
+
+      ImGui::DragFloat2("Delta", reinterpret_cast<float*>(&leftDelta));
+
       ImGui::PlotLines("CPU", deltaCPUs, IM_ARRAYSIZE(deltaCPUs));
+      ImGui::SameLine();
+      double cpu = std::reduce(std::cbegin(deltaCPUs), std::cend(deltaCPUs)) / sizeof(deltaCPUs)/sizeof(float);
+      ImGui::Text("%.6f", cpu);
       ImGui::PlotLines("GPU", deltaGPUs, IM_ARRAYSIZE(deltaGPUs));
+      ImGui::SameLine();
+      double gpu = std::reduce(std::cbegin(deltaGPUs), std::cend(deltaGPUs)) / sizeof(deltaGPUs)/sizeof(float);
+      ImGui::Text("%.6f", gpu);
     }
     ImGui::End();
 
@@ -588,7 +680,9 @@ auto main(int argc, char *argv[]) -> int {
         glBindVertexArray(vao);
         static GLint viewAttribPosition = glGetUniformLocation(program, "MVP");
         const auto projection = glm::perspective(glm::radians(60.F), static_cast<float>(width) / static_cast<float>(height), 0.1F, 1000.F);
-        const auto MVP = projection * camera.view();
+        const auto radians = glm::radians(leftDelta);
+        const auto rotation = glm::yawPitchRoll(radians.x, radians.y, 0.F);
+        const auto MVP = projection * rotation * camera.view();
         glUniformMatrix4fv(viewAttribPosition, 1, GL_FALSE, glm::value_ptr(MVP));
 
         glDrawArrays(GL_TRIANGLES, 0, 42);

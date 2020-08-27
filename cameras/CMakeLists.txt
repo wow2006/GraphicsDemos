@@ -16,9 +16,22 @@ target_link_libraries(
   PRIVATE
   OpenGL::GL
   SDL2::SDL2
-  glm
   gl3w::gl3w
   Imgui::SDL_OpenGL
   options::options
 )
 
+add_executable(
+  firstPersonShootingCamera2
+  firstPersonShootingCamera2.cpp
+)
+
+target_link_libraries(
+  firstPersonShootingCamera2
+  PRIVATE
+  OpenGL::GL
+  SDL2::SDL2
+  gl3w::gl3w
+  Imgui::SDL_OpenGL
+  options::options
+)
