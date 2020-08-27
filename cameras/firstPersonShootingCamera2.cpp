@@ -22,17 +22,6 @@
 #include "firstPersonShootingCamera.hpp"
 #include "utilities.hpp"
 
-[[maybe_unused]] static constexpr auto GL3D_SUCCESS = 0;
-[[maybe_unused]] static constexpr auto SDL_SUCCESS = 0;
-
-[[maybe_unused]] static constexpr auto SDL_IMMEDIATE_UPDATE = 0;
-[[maybe_unused]] static constexpr auto SDL_SYNCHRONIZED_UPDATE = 1;
-[[maybe_unused]] static constexpr auto SDL_ADAPTIVE_UPDATE = -1;
-
-static constexpr auto FrameTime = static_cast<uint32_t>(1000.F / 60.F);
-
-enum MOUSE_BUTTONS { MOUSE_LEFT = 0, MOUSE_MIDDLE, MOUSE_RIGHT, MOUSE_SIZE };
-
 static void DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const GLvoid *pUserParam) {
   (void)type;
   (void)id;
@@ -59,7 +48,7 @@ static void LogOutputFunction(void *userdata, int category, SDL_LogPriority prio
 
 class Engine final {
 public:
-  void initialize();
+  bool initialize();
 
   void updateInput();
 
@@ -78,6 +67,7 @@ public:
 private:
   bool running = false;
   GLuint vao = 0;
+  std::array<GLuint, 3> vbo;
   GLuint program = 0;
   int width = 1280;
   int height = 720;
@@ -98,9 +88,10 @@ private:
   CircularBuffer<float, 60> deltaGPUs;
 };
 
-void Engine::initialize() {
-  if(SDL_Init(SDL_INIT_VIDEO) != 0) {
+bool Engine::initialize() {
+  if(SDL_Init(SDL_INIT_VIDEO) != SDL_SUCCESS) {
     std::cerr << "Can not initialize SDL2\n";
+    return false;
   }
 
   SDL_LogSetOutputFunction(LogOutputFunction, nullptr);
@@ -109,6 +100,7 @@ void Engine::initialize() {
   pWindow = SDL_CreateWindow(sWindowTitle.data(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_OPENGL);
   if(pWindow == nullptr) {
     std::cerr << "Can not create SDL2 window\n";
+    return false;
   }
 
   // Enable Debug OpenGL
@@ -125,11 +117,13 @@ void Engine::initialize() {
   context = SDL_GL_CreateContext(pWindow);
   if(context == nullptr) {
     std::cerr << "Can not create SDL2 context\n";
+    return false;
   }
   SDL_GL_SetSwapInterval(SDL_IMMEDIATE_UPDATE);
 
   if(gl3wInit() != GL3D_SUCCESS) {
     std::cerr << "Can not initialize GL3W!\n";
+    return false;
   }
 
   // Set OpenGL Debug Callback
@@ -146,7 +140,6 @@ void Engine::initialize() {
   ImGui_ImplSDL2_InitForOpenGL(pWindow, context);
   ImGui_ImplOpenGL3_Init("#version 450 core");
 
-  std::array<GLuint, 3> vbo;
   {
     // clang-format off
     std::array<float, 42 * 3> verties{
@@ -259,21 +252,26 @@ void Engine::initialize() {
     // clang-format on
 
     glGenVertexArrays(1, &vao);
-    glGenBuffers(vbo.size(), vbo.data());
     glBindVertexArray(vao);
     {
+      glGenBuffers(vbo.size(), vbo.data());
+
       glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
       glBufferData(GL_ARRAY_BUFFER, sizeof(float) * verties.size(), verties.data(), GL_STATIC_DRAW);
       glEnableVertexAttribArray(0);
       glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, nullptr);
+
       glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
       glBufferData(GL_ARRAY_BUFFER, sizeof(float) * uvcoords.size(), uvcoords.data(), GL_STATIC_DRAW);
       glEnableVertexAttribArray(1);
       glVertexAttribPointer(1, 2, GL_FLOAT, false, 0, nullptr);
+
       glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
       glBufferData(GL_ARRAY_BUFFER, sizeof(float) * normals.size(), normals.data(), GL_STATIC_DRAW);
       glEnableVertexAttribArray(2);
       glVertexAttribPointer(2, 3, GL_FLOAT, false, 0, nullptr);
+
+      glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
   }
 
@@ -306,6 +304,7 @@ void Engine::initialize() {
       GLchar message[1024];
       glGetShaderInfoLog(vShader, 1024, &log_length, message);
       std::cerr << "VertexShader: " << message << '\n';
+      return false;
     }
 
     const char *fSource = R"(
@@ -329,6 +328,7 @@ void Engine::initialize() {
       GLchar message[1024];
       glGetShaderInfoLog(fShader, 1024, &log_length, message);
       std::cerr << "FragmentShader: " << message << '\n';
+      return false;
     }
 
     program = glCreateProgram();
@@ -342,13 +342,14 @@ void Engine::initialize() {
       GLchar message[1024];
       glGetProgramInfoLog(program, 1024, &log_length, message);
       std::cerr << "Program: " << message << '\n';
+      return false;
     }
   }
 
   glEnable(GL_DEPTH_TEST);
   mTimerGPU.initialize();
 
-  running = true;
+  return running = true;
 }
 
 void Engine::updateInput() {
@@ -438,14 +439,14 @@ void Engine::render() {
     ImGui::DragFloat2("Delta", reinterpret_cast<float *>(&leftDelta));
 
     ImGui::PlotLines("CPU", deltaCPUs.mValues, IM_ARRAYSIZE(deltaCPUs.mValues));
-    //ImGui::SameLine();
-    //const double cpu = std::reduce(std::cbegin(deltaCPUs.mValues), std::cbegin(deltaCPUs.mValues)+deltaCPUs.size()) / deltaCPUs.size();
-    //ImGui::Text("%.6f", cpu);
+    ImGui::SameLine();
+    const double cpu = std::reduce(std::cbegin(deltaCPUs.mValues), std::cbegin(deltaCPUs.mValues) + deltaCPUs.size()) / deltaCPUs.size();
+    ImGui::Text("%.6f", cpu);
 
     ImGui::PlotLines("GPU", deltaGPUs.mValues, IM_ARRAYSIZE(deltaGPUs.mValues));
-    //ImGui::SameLine();
-    //const double gpu = std::reduce(std::cbegin(deltaGPUs.mValues), std::cbegin(deltaGPUs.mValues)+deltaGPUs.size()) / deltaGPUs.size();
-    //ImGui::Text("%.6f", gpu);
+    ImGui::SameLine();
+    const double gpu = std::reduce(std::cbegin(deltaGPUs.mValues), std::cbegin(deltaGPUs.mValues) + deltaGPUs.size()) / deltaGPUs.size();
+    ImGui::Text("%.6f", gpu);
   }
   ImGui::End();
 
@@ -456,7 +457,6 @@ void Engine::render() {
   {
     glUseProgram(program);
     {
-      glBindVertexArray(vao);
       static GLint viewAttribPosition = glGetUniformLocation(program, "MVP");
       const auto projection = glm::perspective(glm::radians(60.F), static_cast<float>(width) / static_cast<float>(height), 0.1F, 1000.F);
       const auto radians = glm::radians(leftDelta);
@@ -489,6 +489,9 @@ void Engine::cleanup() {
   glBindVertexArray(0);
   glDeleteVertexArrays(1, &vao);
 
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glDeleteBuffers(vbo.size(), vbo.data());
+
   ImGui_ImplOpenGL3_Shutdown();
   ImGui_ImplSDL2_Shutdown();
   ImGui::DestroyContext();
@@ -516,7 +519,9 @@ auto FPSCamera::filterMouseMoves(glm::vec2 delta) -> glm::vec2 {
 auto main() -> int {
   Engine engine;
 
-  engine.initialize();
+  if(!engine.initialize()) {
+    return EXIT_FAILURE;
+  }
   while(engine.isRunning()) {
     engine.updateInput();
     engine.update();

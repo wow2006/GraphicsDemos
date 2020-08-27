@@ -6,6 +6,18 @@
 // OpenGL
 #include <GL/gl3w.h>
 
+[[maybe_unused]] static constexpr auto GL3D_SUCCESS = 0;
+[[maybe_unused]] static constexpr auto SDL_SUCCESS = 0;
+
+[[maybe_unused]] static constexpr auto SDL_IMMEDIATE_UPDATE = 0;
+[[maybe_unused]] static constexpr auto SDL_SYNCHRONIZED_UPDATE = 1;
+[[maybe_unused]] static constexpr auto SDL_ADAPTIVE_UPDATE = -1;
+
+static constexpr auto FrameTime = static_cast<uint32_t>(1000.F / 60.F);
+
+enum MOUSE_BUTTONS { MOUSE_LEFT = 0, MOUSE_MIDDLE, MOUSE_RIGHT, MOUSE_SIZE };
+
+
 enum TimerType : uint8_t {
   CPU,
   GPU
@@ -75,7 +87,7 @@ struct CircularBuffer {
 
   Type mValues[BufferSize] = {0};
 
-  std::uint32_t size() {
+  std::uint32_t size() const {
     return (currentSize < BufferSize) ? currentSize : BufferSize;
   }
 
@@ -88,5 +100,14 @@ struct CircularBuffer {
     }
     mValues[0] = newValue;
   }
+
 };
 
+template<typename Type, std::uint32_t BufferSize>
+std::ostream& operator<<(std::ostream& out, const CircularBuffer<Type, BufferSize>& buffer) {
+  out << buffer.size() << ": ";
+  for(const auto& b : buffer.mValues) {
+    out << b << ' ';
+  }
+  return out;
+}
