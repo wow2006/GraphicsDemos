@@ -14,14 +14,14 @@ constexpr auto MOUSE_FILTER_WEIGHT = 1.0F;
 
 struct FPSCamera {
 public:
-  void updateRotation(const glm::vec3& angles);
+  void update([[maybe_unused]] float delta, const uint8_t* pStatus);
 
   glm::vec2 filterMouseMoves(glm::vec2 delta);
 
   glm::mat4 view() const;
 
-  glm::vec3 mSpeed{0.5, 0.5, 0.5};
-  glm::vec3 mPosition{0, 0, 10};
+private:
+  glm::vec3 mPosition{10, 10, 10};
   glm::vec3 mTarget{};
   glm::vec3 mUp{0, 1, 0};
 
@@ -48,4 +48,3 @@ inline glm::mat4 FPSCamera::view() const {
   return glm::lookAt(mPosition, mTarget, mUp);
 }
 
-inline glm::mat4 FPSCamera::view() const { return rotationMatrix * glm::lookAt(mPosition, mTarget, mUp); }

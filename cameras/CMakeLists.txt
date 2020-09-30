@@ -8,7 +8,6 @@ find_package(Imgui  REQUIRED)
 
 add_executable(
   firstPersonShootingCamera
-  WIN32
   firstPersonShootingCamera.cpp
 )
 
@@ -18,7 +17,6 @@ target_link_libraries(
   OpenGL::GL
   SDL2::SDL2
   SDL2::SDL2main
-  glm
   gl3w::gl3w
   Imgui::SDL_OpenGL
   options::options
@@ -26,6 +24,28 @@ target_link_libraries(
 
 set_target_properties(
     firstPersonShootingCamera
+    PROPERTIES
+    CXX_STANDRD 17
+)
+
+add_executable(
+  firstPersonShootingCamera2
+  firstPersonShootingCamera2.cpp
+)
+
+target_link_libraries(
+  firstPersonShootingCamera2
+  PRIVATE
+  OpenGL::GL
+  SDL2::SDL2
+  SDL2::SDL2main
+  gl3w::gl3w
+  Imgui::SDL_OpenGL
+  options::options
+)
+
+set_target_properties(
+    firstPersonShootingCamera2
     PROPERTIES
     CXX_STANDRD 17
 )
