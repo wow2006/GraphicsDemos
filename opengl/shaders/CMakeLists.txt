@@ -5,6 +5,7 @@ set(
   drawRedTriangleShader
   controlTriangleColorWithMousePosition
   drawTriangleUsingAttributes
+  drawTriangleUsingAttributesDSA
   drawTrianglePositionAndColorUsingAttributes
   drawCube
   drawCubeWithPerspective
