@@ -11,6 +11,7 @@ set(
   drawTrianglePositionAndColorUsingAttributesDSAOneVBO
   drawCube
   drawCubeWithPerspective
+  drawCubeWithPerspectiveUBO
 )
 
 foreach(sample IN LISTS samples)
