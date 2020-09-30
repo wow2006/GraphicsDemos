@@ -16,17 +16,36 @@ if(UNIX)
   target_link_libraries(programmablePipelineX11 PRIVATE X11::X11 OpenGL::GL options::options)
 endif()
 
-add_executable(fixedPipelineOpenGLSDL fixedPipelineOpenGLSDL.cpp)
+set(
+    demos
+    fixedPipelineOpenGLSDL
+    programmablePipelineOpenGLSDL
+    programmablePipelineGl3wSDL
+    programmablePipelineSDL2EGL
+)
 
-target_link_libraries(fixedPipelineOpenGLSDL PRIVATE OpenGL::GL SDL2::SDL2 options::options)
+foreach(demo IN LISTS demos)
+    add_executable(
+        ${demo}
+        ${demo}.cpp
+    )
 
-add_executable(programmablePipelineOpenGLSDL programmablePipelineOpenGLSDL.cpp)
+    target_link_libraries(
+        ${demo}
+        PRIVATE
+        OpenGL::GL
+        gl3w::gl3w
+        SDL2::SDL2
+        SDL2::SDL2main
+        options::options
+    )
 
-target_link_libraries(programmablePipelineOpenGLSDL PRIVATE OpenGL::GL SDL2::SDL2 options::options)
-
-add_executable(programmablePipelineGl3wSDL programmablePipelineGl3wSDL.cpp)
-
-target_link_libraries(programmablePipelineGl3wSDL PRIVATE OpenGL::GL SDL2::SDL2 options::options gl3w::gl3w)
+    target_compile_definitions(
+        ${demo}
+        PRIVATE
+        NOMINMAX
+    )
+endforeach()
 
 if(ENABLE_Qt5)
   find_package(Qt5 REQUIRED Widgets)

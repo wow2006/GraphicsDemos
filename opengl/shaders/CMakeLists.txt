@@ -21,8 +21,15 @@ foreach(sample IN LISTS samples)
     PRIVATE
     OpenGL::GL
     SDL2::SDL2
+    SDL2::SDL2main
     options::options
     gl3w::gl3w
+  )
+
+  target_compile_definitions(
+    ${sample}
+    PRIVATE
+    NOMINMAX
   )
 endforeach()
 
