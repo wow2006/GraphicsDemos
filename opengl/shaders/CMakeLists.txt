@@ -7,6 +7,7 @@ set(
   drawTriangleUsingAttributes
   drawTriangleUsingAttributesDSA
   drawTrianglePositionAndColorUsingAttributes
+  drawTrianglePositionAndColorUsingAttributesDSA
   drawCube
   drawCubeWithPerspective
 )

@@ -16,15 +16,9 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
 
-
 static constexpr auto GL3D_SUCCESS       = 0;
-static constexpr auto SDL_SUCCESS        = 0;
 static constexpr auto GL_SHADER_FAILURE  = std::numeric_limits<std::uint32_t>::max();
 static constexpr auto GL_PROGRAM_FAILURE = std::numeric_limits<std::uint32_t>::max();
-enum SDL {
-  Immediate = 0,
-  Synchronized
-};
 
 static void DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const GLvoid *pUserParam) {
   (void)type;
@@ -101,12 +95,12 @@ static auto createProgram(GLuint vertexShader, GLuint fragmentShader) -> GLuint 
 }
 
 auto main(int argc, char *argv[]) -> int {
-  if(SDL_Init(SDL_INIT_VIDEO) != SDL_SUCCESS) {
+  if(SDL_Init(SDL_INIT_VIDEO) != 0) {
     std::cerr << "Can not initialize SDL2\n";
     return EXIT_FAILURE;
   }
 
-  int width  = 640;
+  int width = 640;
   int height = 480;
   if(const auto args = parseProgramOptions(argc, argv); args) {
     constexpr auto firstScreenIndex = 0;
@@ -118,7 +112,7 @@ auto main(int argc, char *argv[]) -> int {
   }
 
   constexpr std::string_view sWindowTitle = "RedTriangle";
-  auto *pWindow = SDL_CreateWindow(sWindowTitle.data(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_OPENGL);
+  auto pWindow = SDL_CreateWindow(sWindowTitle.data(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_OPENGL);
   if(pWindow == nullptr) {
     std::cerr << "Can not create SDL2 window\n";
     return EXIT_FAILURE;
@@ -141,7 +135,7 @@ auto main(int argc, char *argv[]) -> int {
     return EXIT_FAILURE;
   }
   // Enable vsync
-  SDL_GL_SetSwapInterval(SDL::Synchronized);
+  SDL_GL_SetSwapInterval(1);
 
   if(gl3wInit() != GL3D_SUCCESS) {
     std::cerr << "Can not initialize GL3W!\n";
@@ -152,30 +146,38 @@ auto main(int argc, char *argv[]) -> int {
   if(glDebugMessageCallback) {
     std::cout << "Debug is enabled\n";
     glDebugMessageCallback(DebugCallback, nullptr);
+    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
   }
 
+  // clang-format off
   // ============================================================
   // Create Shader
   // ============================================================
-  constexpr char vertexShaderSource[] = R"GLSL(
+  const char *vertexShaderSource = R"GLSL(
   #version 450 core
 
   layout (location = 0) in vec4 iPosition;
+  layout (location = 1) in vec4 iColor;
+
+  out vec4 vColor;
 
   void main() {
     gl_Position = iPosition;
+    vColor      = iColor;
   }
   )GLSL";
 
-  constexpr char fragmentShaderSource[] = R"GLSL(
+  const char *fragmentShaderSource = R"GLSL(
   #version 450 core
 
+  in vec4 vColor;
   layout (location = 0) out vec4 oColor;
 
   void main() {
-    oColor = vec4(1, 0, 0, 1);
+    oColor = vColor;
   }
   )GLSL";
+  // clang-format on
 
   auto vertexShader   = createShader(GL_VERTEX_SHADER, vertexShaderSource);
   auto fragmentShader = createShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
@@ -192,31 +194,46 @@ auto main(int argc, char *argv[]) -> int {
      0.5F,-0.5F, 0.0F, 1.0F,
      0.0F, 0.5F, 0.0F, 1.0F
   };
+
+  constexpr std::array colors = {
+     1.0F, 0.0F, 0.0F, 1.0F,
+     0.0F, 1.0F, 0.0F, 1.0F,
+     0.0F, 0.0F, 1.0F, 1.0F
+  };
   // clang-format on
 
   constexpr auto positionAttribute = 0U;
-  constexpr auto bindingID         = 0U;
+  constexpr auto colorAttribute    = 1U;
+  constexpr auto positionBinding   = 0U;
+  constexpr auto colorBinding      = 1U;
 
-  GLuint vbo;
-  glCreateBuffers(1, &vbo);
-  glNamedBufferStorage(vbo, vertices.size() * sizeof(float), vertices.data(), 0);
+  GLuint vbos[2];
+  glCreateBuffers(2, vbos);
+  glNamedBufferStorage(vbos[positionAttribute], vertices.size() * sizeof(float), vertices.data(), 0);
+  glNamedBufferStorage(vbos[colorAttribute],    colors.size() * sizeof(float),   colors.data(),   0);
 
   // ============================
   // Must create one VAO at lest.
   // ============================
   GLuint vao;
   glCreateVertexArrays(1, &vao);
-  glVertexArrayAttribBinding(vao, positionAttribute, bindingID);
-  glVertexArrayAttribFormat(vao,  positionAttribute, 4, GL_FLOAT, GL_FALSE, 0);
-  glEnableVertexArrayAttrib(vao,  positionAttribute);
 
-  glVertexArrayVertexBuffer(vao, bindingID, vbo, 0, sizeof(float) * 4);
+  glVertexArrayVertexBuffer(vao, positionBinding, vbos[positionAttribute], 0, sizeof(float) * 4);
+  glVertexArrayVertexBuffer(vao, colorBinding,    vbos[colorAttribute], 0, sizeof(float) * 4);
+
+  glEnableVertexArrayAttrib(vao,  positionAttribute);
+  glVertexArrayAttribFormat(vao,  positionAttribute, 4, GL_FLOAT, GL_FALSE, 0);
+  glVertexArrayAttribBinding(vao, positionAttribute, positionBinding);
+
+  glEnableVertexArrayAttrib(vao,  colorAttribute);
+  glVertexArrayAttribFormat(vao,  colorAttribute, 4, GL_FLOAT, GL_FALSE, 0);
+  glVertexArrayAttribBinding(vao, colorAttribute, colorBinding);
 
   glBindVertexArray(vao);
 
   constexpr glm::vec4 clearColor = {0.F, 0.F, 0.F, 1.F};
-  glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
-  
+  glClearBufferfv(GL_COLOR, 0, &clearColor.x);
+
   auto bRunning = true;
   while(bRunning) {
     SDL_Event event;
@@ -237,7 +254,7 @@ auto main(int argc, char *argv[]) -> int {
     SDL_GL_SwapWindow(pWindow);
   }
 
-  glDeleteBuffers(1, &vbo);
+  glDeleteBuffers(2, vbos);
   glDeleteVertexArrays(1, &vao);
 
   glDeleteProgram(program);
