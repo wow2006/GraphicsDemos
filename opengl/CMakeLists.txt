@@ -4,7 +4,7 @@ set(OpenGL_GL_PREFERENCE "GLVND")
 find_package(OpenGL REQUIRED)
 find_package(gl3w   REQUIRED)
 
-if(UNIX)
+if(UNIX AND ENABLE_X11)
   find_package(X11 REQUIRED)
 
   add_executable(fixedPipelineOpenGLX11 fixedPipelineOpenGLX11.cpp)
@@ -16,12 +16,28 @@ if(UNIX)
   target_link_libraries(programmablePipelineX11 PRIVATE X11::X11 OpenGL::GL options::options)
 endif()
 
+if(WIN32 AND ENABLE_WIN32)
+  add_executable(
+    fixedPipelineOpenGLWin32
+    WIN32
+    fixedPipelineOpenGLWin32.cpp
+  )
+
+  target_link_libraries(
+    fixedPipelineOpenGLWin32
+    PRIVATE
+    OpenGL::GL
+    OpenGL::GLU
+    options::options
+  )
+endif()
+
 set(
     demos
-    fixedPipelineOpenGLSDL
-    programmablePipelineOpenGLSDL
-    programmablePipelineGl3wSDL
-    programmablePipelineSDL2EGL
+    #fixedPipelineOpenGLSDL
+    #programmablePipelineOpenGLSDL
+    #programmablePipelineGl3wSDL
+    #programmablePipelineSDL2EGL
 )
 
 foreach(demo IN LISTS demos)
@@ -55,4 +71,3 @@ if(ENABLE_Qt5)
 endif()
 
 add_subdirectory(shaders)
-
