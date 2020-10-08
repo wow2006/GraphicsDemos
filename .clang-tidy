@@ -1,6 +1,5 @@
 ---
-Checks:          'portability-*,performance-*,readability-*,cppcoreguidelines-*,modernize-*,clang-analyzer-*'
-WarningsAsErrors: '*'
+Checks:          'portability-*,performance-*,readability-*,cppcoreguidelines-*,modernize-*,clang-analyzer-*,-cppcoreguidelines-pro-type-union-access,-modernize-use-trailing-return-type'
 HeaderFilterRegex: '.*'
 AnalyzeTemporaryDtors: false
 FormatStyle:     none
