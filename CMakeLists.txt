@@ -11,8 +11,6 @@ option(ENABLE_Qt5     "Build Qt5 examples"   OFF)
 option(ENABLE_X11     "Build X11 examples"   OFF)
 option(ENABLE_WIN32   "Build Win32 examples" OFF)
 option(ENABLE_TESTING "Build unit-test"      OFF)
-# TODO(Hussein): Move to WIP Branch
-option(ENABLE_WIP     "Work in progress"     OFF)
 
 if(ENABLE_TESTING)
   enable_testing()
@@ -21,11 +19,5 @@ endif()
 
 add_subdirectory(window)
 add_subdirectory(opengl)
-add_subdirectory(shaders)
+add_subdirectory(datastructures)
 
-if(ENABLE_WIP)
-  add_subdirectory(cameras)
-  add_subdirectory(glTF)
-  add_subdirectory(datastructures)
-  add_subdirectory(mimicOpenGL)
-endif()
