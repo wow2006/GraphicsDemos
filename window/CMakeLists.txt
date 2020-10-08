@@ -60,7 +60,7 @@ if(ENABLE_Qt5)
   )
 endif()
 
-if(UNIX)
+if(UNIX AND ENABLE_X11)
   find_package(X11 REQUIRED)
 
   add_executable(
@@ -76,7 +76,7 @@ if(UNIX)
   )
 endif()
 
-if(WIN32)
+if(WIN32 AND ENABLE_WIN32)
   add_executable(
     simpleWindowWin32
     WIN32

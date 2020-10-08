@@ -33,34 +33,34 @@ if(WIN32 AND ENABLE_WIN32)
 endif()
 
 set(
-    demos
-    #fixedPipelineOpenGLSDL
-    #programmablePipelineOpenGLSDL
-    #programmablePipelineGl3wSDL
-    #programmablePipelineSDL2EGL
+  demos
+  fixedPipelineOpenGLSDL
+  programmablePipelineOpenGLSDL
+  programmablePipelineGl3wSDL
+  programmablePipelineSDL2EGL
 )
 
 foreach(demo IN LISTS demos)
-    add_executable(
-        ${demo}
-        ${demo}.cpp
-    )
+  add_executable(
+      ${demo}
+      ${demo}.cpp
+  )
 
-    target_link_libraries(
-        ${demo}
-        PRIVATE
-        OpenGL::GL
-        gl3w::gl3w
-        SDL2::SDL2
-        SDL2::SDL2main
-        options::options
-    )
+  target_link_libraries(
+    ${demo}
+    PRIVATE
+    OpenGL::GL
+    gl3w::gl3w
+    SDL2::SDL2
+    SDL2::SDL2main
+    options::options
+  )
 
-    target_compile_definitions(
-        ${demo}
-        PRIVATE
-        NOMINMAX
-    )
+  target_compile_definitions(
+    ${demo}
+    PRIVATE
+    NOMINMAX
+  )
 endforeach()
 
 if(ENABLE_Qt5)
@@ -71,3 +71,4 @@ if(ENABLE_Qt5)
 endif()
 
 add_subdirectory(shaders)
+

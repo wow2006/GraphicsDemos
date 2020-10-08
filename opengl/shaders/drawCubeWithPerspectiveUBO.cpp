@@ -10,6 +10,7 @@
 #include <string_view>
 // GLM
 #include <glm/vec4.hpp>
+#include <glm/matrix.hpp>
 // GL3W
 #include <GL/gl3w.h>
 // SDL
@@ -151,6 +152,8 @@ auto main(int argc, char *argv[]) -> int {
   if(glDebugMessageCallback) {
     std::cout << "Debug is enabled\n";
     glDebugMessageCallback(DebugCallback, nullptr);
+    glEnable(GL_DEBUG_OUTPUT);
+    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
   }
 
   // ============================================================
@@ -160,27 +163,10 @@ auto main(int argc, char *argv[]) -> int {
   #version 450 core
 
   layout (location = 0) in vec4 iPosition;
-  const mat4 cPerspective = mat4(
-    vec4(1.81066, 0, 0, 0),
-    vec4(0, 2.41421, 0, 0),
-    vec4(0, 0, -1.002, -1),
-    vec4(0, 0, -0.2002, 0)
-  );
-  const mat4 cView = mat4(
-    vec4(-1, 0, 0, 0),
-    vec4( 0, 1,-0, 0),
-    vec4(-0,-0,-1, 0),
-    vec4( 0, 0,-1, 1)
-  );
-  const mat4 cModel = mat4(
-    vec4( 1, 0, 0, 0),
-    vec4( 0, 1, 0, 0),
-    vec4( 0, 0, 1, 0),
-    vec4( 0, 0, 2, 1)
-  );
+  layout (location = 1) uniform mat4 uMVP;
 
   void main() {
-    gl_Position = cPerspective * cView * cModel * iPosition;
+    gl_Position = iPosition;
   }
   )GLSL";
 
@@ -209,6 +195,34 @@ auto main(int argc, char *argv[]) -> int {
   GLuint vao;
   glGenVertexArrays(1, &vao);
   glBindVertexArray(vao);
+
+  GLuint ubo = 0;
+  glGenBuffers(1, &ubo);
+  glBindBuffer(GL_UNIFORM_BUFFER, ubo);
+  glBufferData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), nullptr, GL_DYNAMIC_DRAW);
+  glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+  const auto cPerspective = glm::mat4(
+    1.81066, 0, 0, 0,
+    0, 2.41421, 0, 0,
+    0, 0, -1.002, -1,
+    0, 0, -0.2002, 0
+  );
+  const auto cView = glm::mat4(
+    -1, 0, 0, 0,
+     0, 1,-0, 0,
+    -0,-0,-1, 0,
+     0, 0,-1, 1
+  );
+  const auto cModel = glm::mat4(
+     1, 0, 0, 0,
+     0, 1, 0, 0,
+     0, 0, 1, 0,
+     0, 0, 2, 1
+  );
+  const auto cMVP = glm::transpose(cPerspective) *
+                    glm::transpose(cView) *
+                    glm::transpose(cModel);
 
   // clang-format off
   constexpr std::array vertices = {
@@ -264,6 +278,7 @@ auto main(int argc, char *argv[]) -> int {
   // clang-format on
 
   constexpr auto positionAttribute = 0U;
+  constexpr auto COLOR_ID = 0U;
 
   GLuint vbo;
   glGenBuffers(1, &vbo);
@@ -286,22 +301,34 @@ auto main(int argc, char *argv[]) -> int {
     glClearBufferfv(GL_COLOR, 0, &clearColor.x);
     glClear(GL_COLOR_BUFFER_BIT);
 
+    glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, COLOR_ID, 11, "Color");
+
     glUseProgram(program);
     {
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glEnableVertexAttribArray(positionAttribute);
-        glVertexAttribPointer(positionAttribute, 3, GL_FLOAT, false,
-                              0, nullptr);
+      {
+        glBindBuffer(GL_UNIFORM_BUFFER, vbo);
+        const auto pMVP = static_cast<glm::mat4*>(glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY));
+        *pMVP = cMVP;
+        glUnmapBuffer(GL_UNIFORM_BUFFER);
+      }
 
-        glDrawArrays(GL_TRIANGLES, 0, numberOfTriangles);
+      glBindBufferBase(GL_UNIFORM_BUFFER, 1, vbo);
+      glEnableVertexAttribArray(positionAttribute);
+      glVertexAttribPointer(positionAttribute, 3, GL_FLOAT, false,
+                            0, nullptr);
+      glDrawArrays(GL_TRIANGLES, 0, numberOfTriangles);
 
-        glDisableVertexAttribArray(positionAttribute);
+      glDisableVertexAttribArray(positionAttribute);
     }
     glUseProgram(0);
+
+    glPopDebugGroup();
 
     SDL_GL_SwapWindow(pWindow);
   }
 
+  glDeleteBuffers(1, &ubo);
+  glDeleteBuffers(1, &vbo);
   glDeleteVertexArrays(1, &vao);
 
   glDeleteProgram(program);

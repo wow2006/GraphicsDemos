@@ -23,9 +23,9 @@ target_link_libraries(
 )
 
 set_target_properties(
-    firstPersonShootingCamera
-    PROPERTIES
-    CXX_STANDRD 17
+  firstPersonShootingCamera
+  PROPERTIES
+  CXX_STANDRD 17
 )
 
 add_executable(
@@ -45,7 +45,8 @@ target_link_libraries(
 )
 
 set_target_properties(
-    firstPersonShootingCamera2
-    PROPERTIES
-    CXX_STANDRD 17
+  firstPersonShootingCamera2
+  PROPERTIES
+  CXX_STANDRD 17
 )
+
