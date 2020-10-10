@@ -10,6 +10,7 @@ auto main() -> int {
     glm::vec2(-0.5, 0.5)
   };
 
+  /*
   QuadTree::Node root;
   root.m_bChildrens = true;
   for(uint32_t index = 0; index < QuadTree::Node::CHILDREN; ++index) {
@@ -19,6 +20,7 @@ auto main() -> int {
     //root.m_aChildrens.at(index) = pChild;
   }
   std::cout << root << '\n';
+  */
 
   return EXIT_SUCCESS;
 }

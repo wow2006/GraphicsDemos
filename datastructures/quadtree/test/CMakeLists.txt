@@ -13,7 +13,7 @@ target_link_libraries(
 
 set(
   TEST_FILES
-  testPrintNode
+  #testPrintNode
   testQuadTree
 )
 
