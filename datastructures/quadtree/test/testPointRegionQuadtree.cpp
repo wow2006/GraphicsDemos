@@ -1,7 +1,7 @@
 // Catch2
 #include <catch2/catch.hpp>
 // Internal
-#include "../quadtree.hpp"
+#include "../pointRegionQuadtree.hpp"
 
 
 namespace glm {

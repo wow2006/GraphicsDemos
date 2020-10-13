@@ -14,7 +14,7 @@ target_link_libraries(
 set(
   TEST_FILES
   #testPrintNode
-  testQuadTree
+  testPointRegionQuadtree
 )
 
 foreach(TEST_FILE IN LISTS TEST_FILES)

@@ -1,11 +1,11 @@
 # ${CMAKE_SOURCE_DIR}/datastructures/quadtree/CMakeLists.txt
 #add_executable(
-#  quadtree
-#  quadtree.cpp
+#  pointRegionQuadtree
+#  pointRegionQuadtree.cpp
 #)
 #
 #target_link_libraries(
-#  quadtree
+#  pointRegionQuadtree
 #  PRIVATE
 #  glm
 #  fmt::fmt
