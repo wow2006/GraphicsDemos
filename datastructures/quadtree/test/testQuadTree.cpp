@@ -127,7 +127,7 @@ TEST_CASE("Add one point (0.25, 0.25),(0.75, 0.75)", "[QuadTree]") {
   REQUIRE(tree.m_pRoot->m_aChildrens[2] == nullptr);
   REQUIRE(tree.m_pRoot->m_aChildrens[3] == nullptr);
 
-  const auto *pChild = tree.m_pRoot->m_aChildrens[0];
+  const auto &pChild = tree.m_pRoot->m_aChildrens[0];
   REQUIRE(pChild->m_bChildrens);
   REQUIRE_FALSE(pChild->m_aChildrens[0] == nullptr);
   REQUIRE(glm::equal(pChild->m_aChildrens[0]->rect, glm::vec4(0.5, 0.5, 0.5, 0.5)));
