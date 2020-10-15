@@ -13,6 +13,27 @@
 #include <glm/glm.hpp>
 
 
+namespace glm {
+  bool equal(glm::vec2 a, glm::vec2 b) {
+    constexpr glm::vec2 EPSILON(std::numeric_limits<float>::epsilon());
+    return glm::all(glm::lessThan(glm::abs(a - b), EPSILON));
+  }
+
+  bool equal(glm::vec4 a, glm::vec4 b) {
+    constexpr glm::vec4 EPSILON(std::numeric_limits<float>::epsilon());
+    return glm::all(glm::lessThan(glm::abs(a - b), EPSILON));
+  }
+  template<uint32_t count>
+  glm::vec<count, float> invalid() {
+    return { std::numeric_limits<float>::max() };
+  }
+
+  template<>
+  glm::vec<2, float> invalid<2>() {
+    return { std::numeric_limits<float>::max(), std::numeric_limits<float>::max() };
+  }
+} // namespace glm
+
 struct QuadTree final {
   struct Node final {
     static constexpr std::size_t CHILDREN = 4;
@@ -61,6 +82,7 @@ struct QuadTree final {
         if(m_aChildrens[currentValueIndex] == nullptr) {
           m_aChildrens[currentValueIndex] = std::make_unique<Node>(value, currentRect);
         }
+        value = glm::invalid<2>();
       }
 
       const auto [newValueIndex, newRect] = index(newValue);
@@ -70,6 +92,38 @@ struct QuadTree final {
       }
       m_aChildrens[newValueIndex]->add(newValue);
     }
+
+    bool remove(glm::vec2 pointToRemove) {
+      if(m_bChildrens) {
+        const auto [idx, _] = index(pointToRemove);
+        if(m_aChildrens[idx] != nullptr &&
+           m_aChildrens[idx]->remove(pointToRemove)) {
+          m_aChildrens[idx].reset();
+          const auto count = std::count_if(std::cbegin(m_aChildrens), std::cend(m_aChildrens),
+                                           [](const std::unique_ptr<Node>& pNode) {
+                                             return pNode != nullptr;
+                                           });
+          if(count == 1) {
+            auto pNode = std::begin(m_aChildrens);
+            for(; pNode != std::end(m_aChildrens); ++pNode) {
+              if(*pNode != nullptr) {
+                break;
+              }
+            }
+            value = (*pNode)->value;
+            (*pNode).reset();
+            m_bChildrens = false;
+          }
+        }
+        return false;
+      }
+
+      if(glm::equal(value, pointToRemove)) {
+        return true;
+      }
+      return false;
+    }
+
   };
 
   QuadTree(glm::vec4 fullsceen) : rect{fullsceen} {}
@@ -80,6 +134,14 @@ struct QuadTree final {
       return;
     }
     m_pRoot->add(value);
+  }
+
+  void remove(glm::vec2 value) {
+    if(m_pRoot) {
+      if(m_pRoot->remove(value)) {
+        m_pRoot.reset();
+      }
+    }
   }
 
   glm::vec4 rect;

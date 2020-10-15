@@ -10,6 +10,11 @@ auto main() -> int {
     glm::vec2(-0.5, 0.5)
   };
 
+  QuadTree tree({-1, -1, 2, 2});
+  tree.add(vertices[0]);
+  tree.add(vertices[1]);
+  tree.add(vertices[2]);
+  tree.add(vertices[3]);
   /*
   QuadTree::Node root;
   root.m_bChildrens = true;

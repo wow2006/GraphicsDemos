@@ -4,18 +4,6 @@
 #include "../pointRegionQuadtree.hpp"
 
 
-namespace glm {
-  bool equal(glm::vec2 a, glm::vec2 b) {
-    constexpr glm::vec2 EPSILON(std::numeric_limits<float>::epsilon());
-    return glm::all(glm::lessThan(glm::abs(a - b), EPSILON));
-  }
-
-  bool equal(glm::vec4 a, glm::vec4 b) {
-    constexpr glm::vec4 EPSILON(std::numeric_limits<float>::epsilon());
-    return glm::all(glm::lessThan(glm::abs(a - b), EPSILON));
-  }
-} // namespace glm
-
 TEST_CASE("two floating point equal") {
   constexpr glm::vec2 a(0.5, 0.5);
   constexpr glm::vec2 b(0.5, 0.5);
@@ -46,7 +34,15 @@ TEST_CASE("Add one point (0.5, 0.5)", "[QuadTree]") {
   REQUIRE(glm::equal(Rect, tree.m_pRoot->rect));
 }
 
-TEST_CASE("Add one point (0.5, 0.5)(0.5,-0.5)", "[QuadTree]") {
+TEST_CASE("Remove one point (0.5, 0.5)", "[QuadTree]") {
+  constexpr glm::vec2 point(0.5, 0.5);
+  QuadTree tree(Rect);
+  tree.add(point);
+  tree.remove(point);
+  REQUIRE(tree.m_pRoot == nullptr);
+}
+
+TEST_CASE("Add points (0.5, 0.5)(0.5,-0.5)", "[QuadTree]") {
   constexpr glm::vec2 point0(0.5, 0.5);
   constexpr glm::vec2 point1(0.5,-0.5);
   QuadTree tree(Rect);
@@ -55,13 +51,28 @@ TEST_CASE("Add one point (0.5, 0.5)(0.5,-0.5)", "[QuadTree]") {
   REQUIRE_FALSE(tree.m_pRoot == nullptr);
   REQUIRE(tree.m_pRoot->m_bInitialied);
   REQUIRE(tree.m_pRoot->m_bChildrens);
-  //REQUIRE_FALSE(glm::equal(point0, tree.m_pRoot->value));
+  REQUIRE_FALSE(glm::equal(point0, tree.m_pRoot->value));
   REQUIRE_FALSE(tree.m_pRoot->m_aChildrens[0] == nullptr);
   REQUIRE(glm::equal(point0, tree.m_pRoot->m_aChildrens[0]->value));
   REQUIRE_FALSE(tree.m_pRoot->m_aChildrens[1] == nullptr);
   REQUIRE(glm::equal(point1, tree.m_pRoot->m_aChildrens[1]->value));
   REQUIRE(tree.m_pRoot->m_aChildrens[2] == nullptr);
   REQUIRE(tree.m_pRoot->m_aChildrens[3] == nullptr);
+}
+
+TEST_CASE("Add points (0.5, 0.5)(0.5,-0.5) then remove (0.5, 0.5)", "[QuadTree]") {
+  constexpr std::array<glm::vec2, 2> points = {
+    glm::vec2(0.5, 0.5),
+    glm::vec2(0.5,-0.5)
+  };
+
+  QuadTree tree(Rect);
+  for(const auto& point : points) {
+    tree.add(point);
+  }
+  tree.remove(points[0]);
+  REQUIRE_FALSE(tree.m_pRoot == nullptr);
+  REQUIRE_FALSE(tree.m_pRoot->m_bChildrens);
 }
 
 TEST_CASE("Add one point (0.5, 0.5)(0.5,-0.5)(-0.5,-0.5)", "[QuadTree]") {
