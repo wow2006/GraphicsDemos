@@ -70,9 +70,18 @@ TEST_CASE("Add points (0.5, 0.5)(0.5,-0.5) then remove (0.5, 0.5)", "[QuadTree]"
   for(const auto& point : points) {
     tree.add(point);
   }
+  REQUIRE_FALSE(tree.m_pRoot->m_aChildrens[0] == nullptr);
+  REQUIRE_FALSE(tree.m_pRoot->m_aChildrens[1] == nullptr);
+  REQUIRE(tree.m_pRoot->m_aChildrens[2] == nullptr);
+  REQUIRE(tree.m_pRoot->m_aChildrens[3] == nullptr);
+
   tree.remove(points[0]);
   REQUIRE_FALSE(tree.m_pRoot == nullptr);
   REQUIRE_FALSE(tree.m_pRoot->m_bChildrens);
+  REQUIRE(tree.m_pRoot->m_aChildrens[0] == nullptr);
+  REQUIRE(tree.m_pRoot->m_aChildrens[1] == nullptr);
+  REQUIRE(tree.m_pRoot->m_aChildrens[2] == nullptr);
+  REQUIRE(tree.m_pRoot->m_aChildrens[3] == nullptr);
 }
 
 TEST_CASE("Add one point (0.5, 0.5)(0.5,-0.5)(-0.5,-0.5)", "[QuadTree]") {
@@ -148,3 +157,27 @@ TEST_CASE("Add one point (0.25, 0.25),(0.75, 0.75)", "[QuadTree]") {
   REQUIRE(pChild->m_aChildrens[3] == nullptr);
 }
 
+TEST_CASE("Add one point (0.25, 0.25),(0.75, 0.75) remove (0.75, 0.75)", "[QuadTree]") {
+  constexpr std::array<glm::vec2, 2> points = {
+    glm::vec2{0.25F, 0.25F},
+    glm::vec2{0.75F, 0.75F}
+  };
+
+  QuadTree tree(Rect);
+  tree.add(points[0]);
+  tree.add(points[1]);
+  REQUIRE_FALSE(tree.m_pRoot->m_aChildrens[0] == nullptr);
+  REQUIRE(tree.m_pRoot->m_aChildrens[1] == nullptr);
+  REQUIRE(tree.m_pRoot->m_aChildrens[2] == nullptr);
+  REQUIRE(tree.m_pRoot->m_aChildrens[3] == nullptr);
+
+  REQUIRE(tree.m_pRoot->m_aChildrens[0]->m_bChildrens);
+  REQUIRE_FALSE(tree.m_pRoot->m_aChildrens[0]->m_aChildrens[0] == nullptr);
+  REQUIRE(tree.m_pRoot->m_aChildrens[0]->m_aChildrens[1] == nullptr);
+  REQUIRE_FALSE(tree.m_pRoot->m_aChildrens[0]->m_aChildrens[2] == nullptr);
+  REQUIRE(tree.m_pRoot->m_aChildrens[0]->m_aChildrens[3] == nullptr);
+
+  tree.remove(points[1]);
+  REQUIRE_FALSE(tree.m_pRoot == nullptr);
+  REQUIRE_FALSE(tree.m_pRoot->m_bChildrens);
+}

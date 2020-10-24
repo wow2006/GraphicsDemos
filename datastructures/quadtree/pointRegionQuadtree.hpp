@@ -12,65 +12,71 @@
 // glm
 #include <glm/glm.hpp>
 
-
 namespace glm {
-  bool equal(glm::vec2 a, glm::vec2 b) {
-    constexpr glm::vec2 EPSILON(std::numeric_limits<float>::epsilon());
-    return glm::all(glm::lessThan(glm::abs(a - b), EPSILON));
-  }
+bool equal(glm::vec2 a, glm::vec2 b) {
+  constexpr glm::vec2 EPSILON(std::numeric_limits<float>::epsilon());
+  return glm::all(glm::lessThan(glm::abs(a - b), EPSILON));
+}
 
-  bool equal(glm::vec4 a, glm::vec4 b) {
-    constexpr glm::vec4 EPSILON(std::numeric_limits<float>::epsilon());
-    return glm::all(glm::lessThan(glm::abs(a - b), EPSILON));
-  }
-  template<uint32_t count>
-  glm::vec<count, float> invalid() {
-    return { std::numeric_limits<float>::max() };
-  }
+bool equal(glm::vec4 a, glm::vec4 b) {
+  constexpr glm::vec4 EPSILON(std::numeric_limits<float>::epsilon());
+  return glm::all(glm::lessThan(glm::abs(a - b), EPSILON));
+}
+template<uint32_t count>
+glm::vec<count, float> invalid() {
+  return {std::numeric_limits<float>::max()};
+}
 
-  template<>
-  glm::vec<2, float> invalid<2>() {
-    return { std::numeric_limits<float>::max(), std::numeric_limits<float>::max() };
-  }
-} // namespace glm
+template<>
+glm::vec<2, float> invalid<2>() {
+  return {std::numeric_limits<float>::max(), std::numeric_limits<float>::max()};
+}
+}  // namespace glm
 
 struct QuadTree final {
+  /*
+   *                   ^
+   *   +---------------|----------------+
+   *   |               |                |
+   *   |               |                |
+   *   | 3. TopLeft    | 0- TopRight    |
+   *   |               |                |
+   *   |               |                |
+   *   +---------------------------------->
+   *   |               |                |
+   *   |               |                |
+   *   | 2- BottomLeft | 1- BottomRight |
+   *   |               |                |
+   *   |               |                |
+   *   +--------------------------------+
+   */
   struct Node final {
     static constexpr std::size_t CHILDREN = 4;
-    enum Index {
-      TopRight = 0,
-      BottomRight,
-      BottomLeft,
-      TopLeft
-    };
+    enum RemoveState { RemoveMe, Check, NotFound };
+    enum Index { TopRight = 0, BottomRight, BottomLeft, TopLeft };
     bool m_bInitialied = false;
-    bool m_bChildrens  = false;
+    bool m_bChildrens = false;
     glm::vec2 value;
     glm::vec4 rect;
     std::array<std::unique_ptr<Node>, CHILDREN> m_aChildrens;
 
     Node(glm::vec2 newValue, glm::vec4 newRect) : m_bInitialied{true}, value(newValue), rect(newRect) {}
 
-    glm::vec2 mid() const {
-      return {
-        rect.x + (rect.z / 2),
-        rect.y + (rect.w / 2)
-      };
-    }
+    glm::vec2 mid() const { return {rect.x + (rect.z / 2), rect.y + (rect.w / 2)}; }
 
     std::pair<Index, glm::vec4> index(glm::vec2 newValue) const {
       const auto mindex = mid();
       if(newValue.x < mindex.x) {
         if(newValue.y < mindex.y) {
-          return {Index::BottomLeft, glm::vec4(rect.x, rect.y, rect.z/2, rect.w/2)};
+          return {Index::BottomLeft, glm::vec4(rect.x, rect.y, rect.z / 2, rect.w / 2)};
         } else {
-          return {Index::TopLeft, glm::vec4(rect.x, rect.y + rect.w/2, rect.z/2, rect.w/2)};
+          return {Index::TopLeft, glm::vec4(rect.x, rect.y + rect.w / 2, rect.z / 2, rect.w / 2)};
         }
       } else {
         if(newValue.y < mindex.y) {
-          return {Index::BottomRight, glm::vec4(rect.x + rect.z/2, rect.y, rect.z/2, rect.w/2)};
+          return {Index::BottomRight, glm::vec4(rect.x + rect.z / 2, rect.y, rect.z / 2, rect.w / 2)};
         } else {
-          return {Index::TopRight, glm::vec4(rect.x + rect.z/2, rect.y + rect.w/2, rect.z/2, rect.w/2)};
+          return {Index::TopRight, glm::vec4(rect.x + rect.z / 2, rect.y + rect.w / 2, rect.z / 2, rect.w / 2)};
         }
       }
     }
@@ -93,16 +99,18 @@ struct QuadTree final {
       m_aChildrens[newValueIndex]->add(newValue);
     }
 
-    bool remove(glm::vec2 pointToRemove) {
+    RemoveState remove(glm::vec2 pointToRemove) {
       if(m_bChildrens) {
         const auto [idx, _] = index(pointToRemove);
-        if(m_aChildrens[idx] != nullptr &&
-           m_aChildrens[idx]->remove(pointToRemove)) {
-          m_aChildrens[idx].reset();
-          const auto count = std::count_if(std::cbegin(m_aChildrens), std::cend(m_aChildrens),
-                                           [](const std::unique_ptr<Node>& pNode) {
-                                             return pNode != nullptr;
-                                           });
+        auto status = RemoveState::NotFound;
+        if(m_aChildrens[idx] != nullptr) {
+          status = m_aChildrens[idx]->remove(pointToRemove);
+        }
+        switch(status) {
+        case RemoveState::RemoveMe: m_aChildrens[idx].reset();
+        case RemoveState::Check: {
+          const auto count = std::count_if(
+            std::cbegin(m_aChildrens), std::cend(m_aChildrens), [](const std::unique_ptr<Node> &pNode) { return pNode != nullptr; });
           if(count == 1) {
             auto pNode = std::begin(m_aChildrens);
             for(; pNode != std::end(m_aChildrens); ++pNode) {
@@ -114,16 +122,17 @@ struct QuadTree final {
             (*pNode).reset();
             m_bChildrens = false;
           }
+          return RemoveState::Check;
         }
-        return false;
+        }
+        return RemoveState::NotFound;
       }
 
       if(glm::equal(value, pointToRemove)) {
-        return true;
+        return RemoveState::RemoveMe;
       }
-      return false;
+      return RemoveState::NotFound;
     }
-
   };
 
   QuadTree(glm::vec4 fullsceen) : rect{fullsceen} {}
@@ -138,7 +147,7 @@ struct QuadTree final {
 
   void remove(glm::vec2 value) {
     if(m_pRoot) {
-      if(m_pRoot->remove(value)) {
+      if(m_pRoot->remove(value) == Node::RemoveState::RemoveMe) {
         m_pRoot.reset();
       }
     }
@@ -146,22 +155,21 @@ struct QuadTree final {
 
   glm::vec4 rect;
   std::unique_ptr<Node> m_pRoot;
-
 };
 
-inline std::ostream& operator<<(std::ostream& out, const glm::vec2& vec) {
+inline std::ostream &operator<<(std::ostream &out, const glm::vec2 &vec) {
   return out << fmt::format("({: .2f},{: .2f})", vec.x, vec.y);
 }
 
-inline std::ostream& operator<<(std::ostream& out, const QuadTree::Node& node) {
+inline std::ostream &operator<<(std::ostream &out, const QuadTree::Node &node) {
   if(!node.m_bInitialied) {
     return out << "()";
   }
 
   if(node.m_bChildrens) {
     out << "()\n";
-    for(uint32_t index = 0; index < QuadTree::Node::CHILDREN-1; ++index) {
-      auto& pChild = node.m_aChildrens.at(index);
+    for(uint32_t index = 0; index < QuadTree::Node::CHILDREN - 1; ++index) {
+      auto &pChild = node.m_aChildrens.at(index);
       if(pChild != nullptr) {
         out << fmt::format("Ͱ ") << *pChild << '\n';
       } else {
@@ -169,7 +177,7 @@ inline std::ostream& operator<<(std::ostream& out, const QuadTree::Node& node) {
       }
     }
 
-    auto& pChild = node.m_aChildrens[QuadTree::Node::CHILDREN-1];
+    auto &pChild = node.m_aChildrens[QuadTree::Node::CHILDREN - 1];
     if(pChild != nullptr) {
       out << fmt::format("L ") << *pChild << '\n';
     } else {
@@ -180,4 +188,3 @@ inline std::ostream& operator<<(std::ostream& out, const QuadTree::Node& node) {
   }
   return out;
 }
-
