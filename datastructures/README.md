@@ -1,10 +1,9 @@
-Creating common Cameras
-------------------------------
+# Data Structure
+I want to implement common used Data Structure in Computer Graphics.
 
-- `TODO` [QuadTree](quadtree/README.md)
+## Space-Partitioning
+
+- `DONE` [QuadTree](quadtree/README.md)
 - `TODO` [Octree]()
 - `TODO` [BSP]()
-- `TODO` [KDtree](kdtree/README.md)
-- `TODO` [KDtree for point cloud]()
-- `TODO` [KDtree for ray tracing]()
-
+- `WIP` [KDtree](kdtree/README.md)
