@@ -1,15 +1,17 @@
 // This is an open source non-commercial project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 // STL
-#include <algorithm>
 #include <array>
-#include <optional>
+#include <string>
 #include <cstdlib>
+#include <optional>
 #include <iostream>
+#include <algorithm>
 #include <string_view>
 // SDL
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
+
 
 using debugCallbackptr = void (*)(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const GLvoid *pUserParam);
 using glDebugMessageCallbackPtr = void (*)(debugCallbackptr, const void *);

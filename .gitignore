@@ -32,3 +32,5 @@
 *.app
 compile_commands.json
 cmake/FindSDL2.cmake
+CMakeSettings.json
+.vs/

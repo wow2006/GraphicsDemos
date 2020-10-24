@@ -2,8 +2,9 @@
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 // STL
 #include <array>
-#include <optional>
+#include <string>
 #include <cstdlib>
+#include <optional>
 #include <iostream>
 #include <string_view>
 // SDL
