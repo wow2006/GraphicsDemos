@@ -55,7 +55,7 @@ struct QuadTree final {
     enum RemoveState { RemoveMe, Check, NotFound };
     enum Index { TopRight = 0, BottomRight, BottomLeft, TopLeft };
     bool m_bInitialied = false;
-    bool m_bChildrens = false;
+    int m_iChildrens = -1;
     glm::vec2 value;
     glm::vec4 rect;
     std::array<std::unique_ptr<Node>, CHILDREN> m_aChildrens;
@@ -82,8 +82,8 @@ struct QuadTree final {
     }
 
     void add(glm::vec2 newValue) {
-      if(!m_bChildrens) {
-        m_bChildrens = true;
+      if(m_iChildrens == -1) {
+        m_iChildrens = 0;
         const auto [currentValueIndex, currentRect] = index(value);
         if(m_aChildrens[currentValueIndex] == nullptr) {
           m_aChildrens[currentValueIndex] = std::make_unique<Node>(value, currentRect);
@@ -100,7 +100,7 @@ struct QuadTree final {
     }
 
     RemoveState remove(glm::vec2 pointToRemove) {
-      if(m_bChildrens) {
+      if(m_iChildrens > -1) {
         const auto [idx, _] = index(pointToRemove);
         auto status = RemoveState::NotFound;
         if(m_aChildrens[idx] != nullptr) {
@@ -109,9 +109,7 @@ struct QuadTree final {
         switch(status) {
         case RemoveState::RemoveMe: m_aChildrens[idx].reset();
         case RemoveState::Check: {
-          const auto count = std::count_if(
-            std::cbegin(m_aChildrens), std::cend(m_aChildrens), [](const std::unique_ptr<Node> &pNode) { return pNode != nullptr; });
-          if(count == 1) {
+          if(m_iChildrens == 0) {
             auto pNode = std::begin(m_aChildrens);
             for(; pNode != std::end(m_aChildrens); ++pNode) {
               if(*pNode != nullptr) {
@@ -120,7 +118,7 @@ struct QuadTree final {
             }
             value = (*pNode)->value;
             (*pNode).reset();
-            m_bChildrens = false;
+            --m_iChildrens;
           }
           return RemoveState::Check;
         }
@@ -133,6 +131,7 @@ struct QuadTree final {
       }
       return RemoveState::NotFound;
     }
+
   };
 
   QuadTree(glm::vec4 fullsceen) : rect{fullsceen} {}
@@ -166,7 +165,7 @@ inline std::ostream &operator<<(std::ostream &out, const QuadTree::Node &node) {
     return out << "()";
   }
 
-  if(node.m_bChildrens) {
+  if(node.m_iChildrens > -1) {
     out << "()\n";
     for(uint32_t index = 0; index < QuadTree::Node::CHILDREN - 1; ++index) {
       auto &pChild = node.m_aChildrens.at(index);
