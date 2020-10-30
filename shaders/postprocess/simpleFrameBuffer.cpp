@@ -10,6 +10,7 @@
 // SDL2
 #include <SDL2/SDL.h>
 
+
 enum GL3D { SUCCESS = 0 };
 enum class SDL_GL : int { ADAPTIVE_VSYNC = -1, IMMEDIATE = 0, SYNCHRONIZED = 1 };
 constexpr auto gTitle      = "Scene";
@@ -122,6 +123,30 @@ public:
     return program;
   }
 
+  static GLuint createTexture() {
+    GLuint renderedTexture = 0;
+    glGenTextures(1, &renderedTexture);
+    glBindTexture(GL_TEXTURE_2D, renderedTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, gWidth, gHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    return renderedTexture;
+  }
+
+  void createFrameBuffer() {
+    mRenderedTexture = createTexture();
+
+    glGenFramebuffers(1, &mFrameBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, mFrameBuffer);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mRenderedTexture, 0);
+    GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
+    glDrawBuffers(1, DrawBuffers);
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        fprintf(stderr, "Problem with Frame buffer\n");
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  }
+
   void createProgram() {
     vsProgram = CreateProgramFromShader("shaders/simple_vertex.glsl" , GL_VERTEX_SHADER);
     fsProgram = CreateProgramFromShader("shaders/simple_fragment.glsl", GL_FRAGMENT_SHADER);
@@ -147,12 +172,17 @@ public:
         }
       }
 
+      glBindFramebuffer(GL_FRAMEBUFFER, mFrameBuffer);
       glDrawArrays(GL_TRIANGLES, 0, 3);
+      glBindFramebuffer(GL_FRAMEBUFFER, 0);
       SDL_GL_SwapWindow(m_pWindow);
     }
   }
 
   void cleanup() {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDeleteTextures(1, &mRenderedTexture);
+    glDeleteFramebuffers(1, &mFrameBuffer);
     glDeleteProgram(vsProgram);
     glDeleteProgram(fsProgram);
     glDeleteProgramPipelines(1, &mProgram);
@@ -164,17 +194,21 @@ public:
 
   SDL_Window *m_pWindow = nullptr;
   SDL_GLContext mContext = nullptr;
-  GLuint vsProgram = 0, fsProgram = 0;
-  GLuint mVAO = 0;
-  GLuint mProgram = 0;
+  GLuint vsProgram    = 0;
+  GLuint fsProgram    = 0;
+  GLuint mVAO         = 0;
+  GLuint mProgram     = 0;
+  GLuint mFrameBuffer = 0;
+  GLuint mRenderedTexture = 0;
 };
 
-int main() {
+int main(int argc, char* argv[]) {
   try {
     Engine engine;
     engine.initialize();
     engine.createBuffers();
     engine.createProgram();
+    engine.createFrameBuffer();
     engine.draw();
     engine.cleanup();
   } catch(const std::runtime_error& error) {

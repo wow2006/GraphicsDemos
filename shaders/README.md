@@ -1,12 +1,6 @@
-# Materials:
-- [Flat]()
-- [Gouraud]()
-- [Phong]()
-
-# Lights:
-- [Ambient]()
-- [Point]()
-- [Direct]()
-- [Area]()
-- [SpotLight]()
-
+# Shaders
+- [triangle](triangle)
+- [materials](materials)
+- [texture](texture)
+- [postprocess](postprocess)
+- [lights](lights)

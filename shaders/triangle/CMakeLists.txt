@@ -1,5 +1,4 @@
-find_package(fmt REQUIRED)
-
+# ${CMAKE_SOURCE_DIR}/shaders/triangle/CMakeLists.txt
 set(demos
   triangle450
   triangle450UseUinform
@@ -17,7 +16,6 @@ foreach(demo IN LISTS demos)
     SDL2::SDL2
     options::options
     gl3w::gl3w
-    fmt::fmt
   )
 endforeach()
 

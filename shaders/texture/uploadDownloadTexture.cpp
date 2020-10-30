@@ -10,14 +10,26 @@
 // SDL2
 #include <SDL2/SDL.h>
 
+
 enum GL3D { SUCCESS = 0 };
 enum class SDL_GL : int { ADAPTIVE_VSYNC = -1, IMMEDIATE = 0, SYNCHRONIZED = 1 };
-constexpr auto gTitle      = "Scene";
-constexpr auto gWidth      = 640U;
-constexpr auto gHeight     = 480U;
+constexpr auto gTitle = "UploadDownloadTexture";
+constexpr auto gWidth = 640U;
+constexpr auto gHeight = 480U;
 constexpr auto SDL_SUCCESS = 0;
-constexpr auto GL_MINOR    = 5;
-constexpr auto GL_MAJOR    = 4;
+constexpr auto GL_MINOR = 5;
+constexpr auto GL_MAJOR = 4;
+
+static void DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const GLvoid *pUserParam) {
+  (void)type;
+  (void)id;
+  (void)severity;
+  (void)length;
+  (void)pUserParam;
+  if(severity == GL_DEBUG_SEVERITY_HIGH) {
+    std::printf("Error: %d - %s\n", source, message);
+  }
+}
 
 inline auto readTextFile(const std::string& fileName) -> std::string {
   std::ifstream inputStream(fileName, std::ios::ate);
@@ -33,17 +45,6 @@ inline auto readTextFile(const std::string& fileName) -> std::string {
   output.resize(static_cast<size_t>(fileSize));
   inputStream.read(output.data(), static_cast<std::streamsize>(output.size()));
   return output;
-}
-
-static void DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const GLvoid *pUserParam) {
-  (void)type;
-  (void)id;
-  (void)severity;
-  (void)length;
-  (void)pUserParam;
-  if(severity == GL_DEBUG_SEVERITY_HIGH) {
-    std::printf("Error: %d - %s\n", source, message);
-  }
 }
 
 class Engine final {
@@ -99,7 +100,7 @@ public:
     }
   }
 
-  static GLuint CreateProgramFromShader(const std::string& shaderName, GLenum shaderType) {
+  static GLuint CreateProgramFromShader(const std::string &shaderName, GLenum shaderType) {
     const auto shaderSource = readTextFile(shaderName);
     const auto *pShaderSource = shaderSource.data();
     GLuint shader = glCreateShader(shaderType);
@@ -112,24 +113,58 @@ public:
 
     GLint program_linked = 0;
     glGetProgramiv(program, GL_LINK_STATUS, &program_linked);
-    if (program_linked != GL_TRUE) {
-        constexpr auto MESSAGE_SIZE = 1024;
-        GLsizei log_length = 0;
-        std::array<GLchar, MESSAGE_SIZE> message = {};
-        glGetProgramInfoLog(program, MESSAGE_SIZE, &log_length, message.data());
-        throw std::runtime_error(message.data());
+    if(program_linked != GL_TRUE) {
+      constexpr auto MESSAGE_SIZE = 1024;
+      GLsizei log_length = 0;
+      std::array<GLchar, MESSAGE_SIZE> message = {};
+      glGetProgramInfoLog(program, MESSAGE_SIZE, &log_length, message.data());
+      throw std::runtime_error(message.data());
     }
     return program;
   }
 
+  static GLuint createTexture() {
+    GLuint renderedTexture = 0;
+    glGenTextures(1, &renderedTexture);
+    glBindTexture(GL_TEXTURE_2D, renderedTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, gWidth, gHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    return renderedTexture;
+  }
+
+  void createFrameBuffer() {
+    mRenderedTexture = createTexture();
+
+    glGenFramebuffers(1, &mFrameBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, mFrameBuffer);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mRenderedTexture, 0);
+    const GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
+    glDrawBuffers(1, DrawBuffers);
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+      fprintf(stderr, "Problem with Frame buffer\n");
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  }
+
   void createProgram() {
-    vsProgram = CreateProgramFromShader("shaders/simple_vertex.glsl" , GL_VERTEX_SHADER);
-    fsProgram = CreateProgramFromShader("shaders/simple_fragment.glsl", GL_FRAGMENT_SHADER);
+    auto vsProgram = CreateProgramFromShader("shaders/vertex.glsl",   GL_VERTEX_SHADER);
+    auto fsProgram = CreateProgramFromShader("shaders/fragment.glsl", GL_FRAGMENT_SHADER);
 
     glCreateProgramPipelines(1, &mProgram);
-    glUseProgramStages(mProgram, GL_VERTEX_SHADER_BIT,   vsProgram);
+    glUseProgramStages(mProgram, GL_VERTEX_SHADER_BIT, vsProgram);
     glUseProgramStages(mProgram, GL_FRAGMENT_SHADER_BIT, fsProgram);
-    glBindProgramPipeline(mProgram);
+    glDeleteProgram(vsProgram);
+    glDeleteProgram(fsProgram);
+
+    vsProgram = CreateProgramFromShader("shaders/framebuffer_vs.glsl", GL_VERTEX_SHADER);
+    fsProgram = CreateProgramFromShader("shaders/framebuffer_fs.glsl", GL_FRAGMENT_SHADER);
+
+    glCreateProgramPipelines(1, &mFBO_Program);
+    glUseProgramStages(mFBO_Program, GL_VERTEX_SHADER_BIT, vsProgram);
+    glUseProgramStages(mFBO_Program, GL_FRAGMENT_SHADER_BIT, fsProgram);
+    glDeleteProgram(vsProgram);
+    glDeleteProgram(fsProgram);
   }
 
   void createBuffers() {
@@ -147,15 +182,27 @@ public:
         }
       }
 
-      glDrawArrays(GL_TRIANGLES, 0, 3);
+      // Draw into FrameBuffer
+      glBindProgramPipeline(mProgram);
+      glBindFramebuffer(GL_FRAMEBUFFER, mFrameBuffer);
+      glDrawArrays(GL_TRIANGLES, 0, 6);
+      glBindFramebuffer(GL_FRAMEBUFFER, 0);
+      // Draw into Default FrameBuffer
+      glBindProgramPipeline(mFBO_Program);
+      glActiveTexture(GL_TEXTURE0);
+      glBindTexture(GL_TEXTURE_2D, mRenderedTexture);
+      glDrawArrays(GL_TRIANGLES, 0, 6);
       SDL_GL_SwapWindow(m_pWindow);
     }
   }
 
   void cleanup() {
-    glDeleteProgram(vsProgram);
-    glDeleteProgram(fsProgram);
+    glBindProgramPipeline(0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDeleteTextures(1, &mRenderedTexture);
+    glDeleteFramebuffers(1, &mFrameBuffer);
     glDeleteProgramPipelines(1, &mProgram);
+    glDeleteProgramPipelines(1, &mFBO_Program);
     glDeleteVertexArrays(1, &mVAO);
     SDL_GL_DeleteContext(mContext);
     SDL_DestroyWindow(m_pWindow);
@@ -164,23 +211,26 @@ public:
 
   SDL_Window *m_pWindow = nullptr;
   SDL_GLContext mContext = nullptr;
-  GLuint vsProgram = 0, fsProgram = 0;
   GLuint mVAO = 0;
   GLuint mProgram = 0;
+  GLuint mFBO_Program = 0;
+  GLuint mFrameBuffer = 0;
+  GLuint mRenderedTexture = 0;
 };
 
-int main() {
+int main(int argc, char *argv[]) {
+  (void)argc; (void)argv;
   try {
     Engine engine;
     engine.initialize();
     engine.createBuffers();
     engine.createProgram();
+    engine.createFrameBuffer();
     engine.draw();
     engine.cleanup();
-  } catch(const std::runtime_error& error) {
+  } catch(const std::runtime_error &error) {
     std::cerr << error.what() << '\n';
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;
 }
-

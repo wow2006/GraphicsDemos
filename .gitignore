@@ -30,7 +30,13 @@
 *.exe
 *.out
 *.app
-compile_commands.json
+
 cmake/FindSDL2.cmake
-CMakeSettings.json
+
+# clangd
+.clangd/
+compile_commands.json
+# Visual Studio
 .vs/
+CMakeSettings.json
+

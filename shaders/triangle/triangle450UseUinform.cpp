@@ -23,7 +23,7 @@ constexpr auto SDL_SUCCESS = 0;
 inline auto readTextFile(const std::string& fileName) -> std::string {
   std::ifstream inputStream(fileName, std::ios::ate);
   if(!inputStream.is_open()) {
-    throw std::runtime_error(fmt::format("ERROR: Can nor read \"{0}\" file!\n", fileName));
+    //throw std::runtime_error(fmt::format("ERROR: Can nor read \"{0}\" file!\n", fileName));
   }
   const auto fileSize = inputStream.tellg();
   inputStream.seekg(0, std::ios::beg);
@@ -47,14 +47,14 @@ static void DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity
   //  return;
   //}
 
-  fmt::print(fg(fmt::color::red), "Error: {0} - {1}\n", source, message);
+  //fmt::print(fg(fmt::color::red), "Error: {0} - {1}\n", source, message);
 }
 
 class Engine final {
 public:
   void initialize() {
     if(SDL_Init(SDL_INIT_VIDEO) != SDL_SUCCESS) {
-      throw std::runtime_error(fmt::format("Can not initialize \"{}\"", SDL_GetError()));
+      //throw std::runtime_error(fmt::format("Can not initialize \"{}\"", SDL_GetError()));
     }
 
     // Enable Debug OpenGL
@@ -69,12 +69,12 @@ public:
 
     m_pWindow = SDL_CreateWindow(gTitle, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, gWidth, gHeight, SDL_WINDOW_OPENGL);
     if(m_pWindow == nullptr) {
-      throw std::runtime_error(fmt::format("Can not create window \"{}\"", SDL_GetError()));
+      //throw std::runtime_error(fmt::format("Can not create window \"{}\"", SDL_GetError()));
     }
 
     mContext = SDL_GL_CreateContext(m_pWindow);
     if(mContext == nullptr) {
-      throw std::runtime_error(fmt::format("Can not create context \"{}\"", SDL_GetError()));
+      //throw std::runtime_error(fmt::format("Can not create context \"{}\"", SDL_GetError()));
     }
 
     if(gl3wInit() != GL3D::SUCCESS) {
