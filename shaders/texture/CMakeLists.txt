@@ -20,6 +20,12 @@ target_compile_definitions(
 )
 
 file(
+  DOWNLOAD
+  https://raw.githubusercontent.com/nothings/stb/master/stb_image_write.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/stb_image_write.h
+)
+
+file(
   COPY
   ${CMAKE_CURRENT_SOURCE_DIR}/shaders
   DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/

@@ -1,5 +1,6 @@
 // STL
 #include <array>
+#include <vector>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -9,6 +10,9 @@
 #include <GL/gl3w.h>
 // SDL2
 #include <SDL2/SDL.h>
+// stb
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
 
 
 enum GL3D { SUCCESS = 0 };
@@ -19,6 +23,17 @@ constexpr auto gHeight = 480U;
 constexpr auto SDL_SUCCESS = 0;
 constexpr auto GL_MINOR = 5;
 constexpr auto GL_MAJOR = 4;
+constexpr auto VERTICES_TO_DRAW = 6;
+
+constexpr auto TextureWidth    = 4;
+constexpr auto TextureChannels = 3;
+constexpr auto TextureHeight   = 4;
+constexpr std::array<uint8_t, TextureWidth * TextureChannels * TextureHeight> g_cTexture = {
+  255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255,
+  255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255,
+  255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255,
+  255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255,
+};
 
 static void DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const GLvoid *pUserParam) {
   (void)type;
@@ -127,42 +142,19 @@ public:
     GLuint renderedTexture = 0;
     glGenTextures(1, &renderedTexture);
     glBindTexture(GL_TEXTURE_2D, renderedTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, gWidth, gHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, TextureWidth, TextureHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, g_cTexture.data());
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     return renderedTexture;
   }
 
-  void createFrameBuffer() {
-    mRenderedTexture = createTexture();
-
-    glGenFramebuffers(1, &mFrameBuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, mFrameBuffer);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mRenderedTexture, 0);
-    const GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
-    glDrawBuffers(1, DrawBuffers);
-    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-      fprintf(stderr, "Problem with Frame buffer\n");
-    }
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  }
-
   void createProgram() {
-    auto vsProgram = CreateProgramFromShader("shaders/vertex.glsl",   GL_VERTEX_SHADER);
-    auto fsProgram = CreateProgramFromShader("shaders/fragment.glsl", GL_FRAGMENT_SHADER);
+    const auto vsProgram = CreateProgramFromShader("shaders/framebuffer_vs.glsl", GL_VERTEX_SHADER);
+    const auto fsProgram = CreateProgramFromShader("shaders/framebuffer_fs.glsl", GL_FRAGMENT_SHADER);
 
     glCreateProgramPipelines(1, &mProgram);
     glUseProgramStages(mProgram, GL_VERTEX_SHADER_BIT, vsProgram);
     glUseProgramStages(mProgram, GL_FRAGMENT_SHADER_BIT, fsProgram);
-    glDeleteProgram(vsProgram);
-    glDeleteProgram(fsProgram);
-
-    vsProgram = CreateProgramFromShader("shaders/framebuffer_vs.glsl", GL_VERTEX_SHADER);
-    fsProgram = CreateProgramFromShader("shaders/framebuffer_fs.glsl", GL_FRAGMENT_SHADER);
-
-    glCreateProgramPipelines(1, &mFBO_Program);
-    glUseProgramStages(mFBO_Program, GL_VERTEX_SHADER_BIT, vsProgram);
-    glUseProgramStages(mFBO_Program, GL_FRAGMENT_SHADER_BIT, fsProgram);
     glDeleteProgram(vsProgram);
     glDeleteProgram(fsProgram);
   }
@@ -170,6 +162,7 @@ public:
   void createBuffers() {
     glCreateVertexArrays(1, &mVAO);
     glBindVertexArray(mVAO);
+    mRenderedTexture = createTexture();
   }
 
   void draw() const {
@@ -183,26 +176,24 @@ public:
       }
 
       // Draw into FrameBuffer
-      glBindProgramPipeline(mProgram);
-      glBindFramebuffer(GL_FRAMEBUFFER, mFrameBuffer);
-      glDrawArrays(GL_TRIANGLES, 0, 6);
-      glBindFramebuffer(GL_FRAMEBUFFER, 0);
-      // Draw into Default FrameBuffer
-      glBindProgramPipeline(mFBO_Program);
       glActiveTexture(GL_TEXTURE0);
       glBindTexture(GL_TEXTURE_2D, mRenderedTexture);
-      glDrawArrays(GL_TRIANGLES, 0, 6);
+      glBindProgramPipeline(mProgram);
+      glDrawArrays(GL_TRIANGLES, 0, VERTICES_TO_DRAW);
       SDL_GL_SwapWindow(m_pWindow);
     }
   }
 
   void cleanup() {
+    std::vector<uint8_t> buffer(TextureWidth * TextureChannels * TextureHeight);
+    glBindTexture(GL_TEXTURE_2D, mRenderedTexture);
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, buffer.data());
+    glBindTexture(GL_TEXTURE_2D, 0);
+    stbi_write_png("buffer.png", TextureWidth, TextureHeight, 3, buffer.data(), TextureWidth * TextureChannels);
+
     glBindProgramPipeline(0);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDeleteTextures(1, &mRenderedTexture);
-    glDeleteFramebuffers(1, &mFrameBuffer);
     glDeleteProgramPipelines(1, &mProgram);
-    glDeleteProgramPipelines(1, &mFBO_Program);
     glDeleteVertexArrays(1, &mVAO);
     SDL_GL_DeleteContext(mContext);
     SDL_DestroyWindow(m_pWindow);
@@ -213,8 +204,6 @@ public:
   SDL_GLContext mContext = nullptr;
   GLuint mVAO = 0;
   GLuint mProgram = 0;
-  GLuint mFBO_Program = 0;
-  GLuint mFrameBuffer = 0;
   GLuint mRenderedTexture = 0;
 };
 
@@ -225,7 +214,6 @@ int main(int argc, char *argv[]) {
     engine.initialize();
     engine.createBuffers();
     engine.createProgram();
-    engine.createFrameBuffer();
     engine.draw();
     engine.cleanup();
   } catch(const std::runtime_error &error) {
@@ -234,3 +222,4 @@ int main(int argc, char *argv[]) {
   }
   return EXIT_SUCCESS;
 }
+

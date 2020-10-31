@@ -6,5 +6,6 @@ find_package(gl3w   REQUIRED)
 #add_subdirectory(triangle)
 #add_subdirectory(materials)
 #add_subdirectory(lights)
-#add_subdirectory(postprocess)
+add_subdirectory(postprocess)
 add_subdirectory(texture)
+
