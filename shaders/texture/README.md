@@ -1,7 +1,8 @@
 # Texture
 
 ## Upload/Download texture from GPU
-Create a texture object then fill it with red.
+Create a texture object then fill it with simple texture.
 
-## Simple texture fragment shader
-Implement a simple fragment shader which uses simpler2D to write outColor.
+## Use DSA commands for OpenGL
+Same preview demo except replace texture functions with DSA.
+
