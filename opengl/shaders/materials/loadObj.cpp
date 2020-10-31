@@ -1,3 +1,5 @@
+// This is an open source non-commercial project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 // STL
 #include <array>
 #include <chrono>
@@ -16,7 +18,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 // assimp
 #include <assimp/scene.h>
-//#include <assimp/Defines.h>
 #include <assimp/Importer.hpp>
 
 enum GL3D { SUCCESS = 0 };
@@ -44,52 +45,22 @@ static void DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity
 static const char *vertexShaderSource = R"GLSL(
 #version 450 core
 
-layout (location = 0) in vec3 iPosition;
-layout (location = 1) in vec3 iNormal;
+layout (location = 0) in vec4 iPosition;
 
-struct Matrices {
-mat3 Normal;
-mat4 ModelView;
-mat4 ModelViewProjection;
-};
-uniform Matrices uMatrices;
-
-smooth out vec3 oNormal;
-smooth out vec3 oPosition;
+layout (location = 0) uniform mat4 MVP;
 
 void main() {
-  oNormal     = normalize(uMatrices.Normal * iNormal);
-  oPosition   = vec3(uMatrices.ModelView * vec4(iPosition, 1));
-  gl_Position = uMatrices.ModelViewProjection * vec4(iPosition, 1);
+  gl_Position = MVP * iPosition;
 }
 )GLSL";
 
 static const char *fragmentShaderSource = R"GLSL(
 #version 450 core
 
-struct Material {
-vec3 Ambient;
-vec3 Diffuse;
-};
-uniform Material uMatrial;
-
-struct Light {
-vec3 Pos;
-vec3 Color;
-};
-uniform Light uLight;
-
-in vec3 oNormal;
-in vec3 oPosition;
 layout (location = 0) out vec4 oColor;
 
 void main() {
-  vec3 s        = normalize(uLight.Pos - oPosition);
-
-  vec3 ambient = uMatrial.Ambient;
-  vec3 diffuse = uLight.Color * uMatrial.Diffuse * max(dot(s, oNormal), 0);
-
-  oColor = vec4(ambient + diffuse, 1.0);
+  oColor = vec4(1.0, 0, 0, 1.0);
 }
 )GLSL";
 
@@ -98,13 +69,10 @@ struct Model {
   GLuint vbo[3];
   void draw() const {
     glBindVertexArray(vao);
-    { glDrawArrays(GL_TRIANGLES, 0, count); }
+    { glDrawArrays(GL_TRIANGLES, 0, mVertices.size() / 3); }
     glBindVertexArray(0);
   }
-  GLuint count;
   std::vector<float> mVertices;
-  std::vector<float> mNormals;
-  std::vector<float> mTexturesCoords;
 };
 
 struct Scene {
@@ -112,26 +80,14 @@ struct Scene {
 
   void initialize() {
     for(auto &model : mModels) {
-      model.count = model.mVertices.size()/3;
       glGenVertexArrays(1, &model.vao);
       glBindVertexArray(model.vao);
       {
         glGenBuffers(2, model.vbo);
-        {
-          constexpr auto VERTEX_ATTRIBUTE = 0U;
-          glBindBuffer(GL_ARRAY_BUFFER, model.vbo[VERTEX_ATTRIBUTE]);
-          glBufferData(GL_ARRAY_BUFFER, model.mVertices.size() * sizeof(float), model.mVertices.data(), GL_STATIC_DRAW);
-          glVertexAttribPointer(VERTEX_ATTRIBUTE, 3, GL_FLOAT, false, 0, nullptr);
-          glEnableVertexAttribArray(VERTEX_ATTRIBUTE);
-        }
-
-        {
-          constexpr auto NORMAL_ATTRIBUTE = 1U;
-          glBindBuffer(GL_ARRAY_BUFFER, model.vbo[NORMAL_ATTRIBUTE]);
-          glBufferData(GL_ARRAY_BUFFER, model.mNormals.size() * sizeof(float), model.mNormals.data(), GL_STATIC_DRAW);
-          glVertexAttribPointer(NORMAL_ATTRIBUTE, 3, GL_FLOAT, false, 0, nullptr);
-          glEnableVertexAttribArray(NORMAL_ATTRIBUTE);
-        }
+        glBindBuffer(GL_ARRAY_BUFFER, model.vbo[0]);
+        glBufferData(GL_ARRAY_BUFFER, model.mVertices.size() * 3 * sizeof(float), model.mVertices.data(), GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, nullptr);
       }
       glBindVertexArray(0);
     }
@@ -147,19 +103,12 @@ struct Scene {
 static auto LoadMesh(const aiMesh *pMesh) -> Model {
   Model model;
   model.mVertices.resize(pMesh->mNumVertices * 3);
-  model.mNormals.resize(pMesh->mNumVertices * 3);
-  //model.mTexturesCoords.reserve(pMesh->mNumVertices * 3);
 
   glm::vec3 *pVertex = reinterpret_cast<glm::vec3 *>(model.mVertices.data());
-  glm::vec3 *pNormal = reinterpret_cast<glm::vec3 *>(model.mNormals.data());
   for(auto i = 0U; i < pMesh->mNumVertices; i++) {
     const aiVector3D *pPos = &(pMesh->mVertices[i]);
-    const aiVector3D *pNrm = &(pMesh->mNormals[i]);
-    //const aiVector3D* pTexCoord = paiMesh->HasTextureCoords(0) ? &(paiMesh->mTextureCoords[0][i]) : &Zero3D;
     *pVertex = {pPos->x, pPos->y, pPos->z};
-    *pNormal = {pNrm->x, pNrm->y, pNrm->z};
     ++pVertex;
-    ++pNormal;
   }
   return model;
 }
@@ -284,12 +233,10 @@ struct Timer<TimerType::GPU> {
   GLuint mQueries[2];
 };
 
-// clang-format off
-constexpr auto gTitle      = "Scene";
-constexpr auto gWidth      = 640U;
-constexpr auto gHeight     = 480U;
+constexpr auto gTitle = "Scene";
+constexpr auto gWidth = 640U;
+constexpr auto gHeight = 480U;
 constexpr auto SDL_SUCCESS = 0;
-// clang-format on
 
 auto main() -> int {
   if(SDL_Init(SDL_INIT_VIDEO) != SDL_SUCCESS) {
@@ -340,7 +287,7 @@ auto main() -> int {
 
   GLuint program = 0U;
   {
-    auto vertexShader   = createShader(GL_VERTEX_SHADER,   vertexShaderSource);
+    auto vertexShader = createShader(GL_VERTEX_SHADER, vertexShaderSource);
     auto fragmentShader = createShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
     if(vertexShader == static_cast<std::uint32_t>(ShaderResult::FAILURE) ||
        fragmentShader == static_cast<std::uint32_t>(ShaderResult::FAILURE)) {
@@ -351,37 +298,17 @@ auto main() -> int {
     glDeleteShader(fragmentShader);
   }
 
-  // clang-format off
-  const auto ratio       = static_cast<float>(gWidth) / static_cast<float>(gHeight);
+  const auto ratio = static_cast<float>(gWidth) / static_cast<float>(gHeight);
   const auto prespective = glm::perspective(45.F, ratio, 0.001F, 1000.F);
-  const auto view        = glm::lookAt(glm::vec3{2, 2, 2}, glm::vec3{}, glm::vec3{0, 1, 0});
-  // clang-format on
+  const auto view = glm::lookAt(glm::vec3{5, 5, 5}, glm::vec3{}, glm::vec3{0, 1, 0});
 
   const auto MVP = prespective * view;
-
-  const auto N = glm::mat3(glm::vec3(view[0]), glm::vec3(view[1]), glm::vec3(view[2]));
-
-  GLuint UBO;
-  glGenBuffers(1, &UBO);
-  glBindBuffer(GL_UNIFORM_BUFFER, UBO);
-  glBufferData(GL_UNIFORM_BUFFER, 3 * sizeof(glm::mat4), nullptr, GL_DYNAMIC_DRAW);
-  glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-  // clang-format off
-  auto locationMatrialAmbient              = glGetUniformLocation(program, "uMatrial.Ambient");
-  auto locationMatrialDiffuse              = glGetUniformLocation(program, "uMatrial.Diffuse");
-  auto locationMatricesNormal              = glGetUniformLocation(program, "uMatrices.Normal");
-  auto locationMatricesModelView           = glGetUniformLocation(program, "uMatrices.ModelView");
-  auto locationMatricesModelViewProjection = glGetUniformLocation(program, "uMatrices.ModelViewProjection");
-  auto locationLightPos                    = glGetUniformLocation(program, "uLight.Pos");
-  auto locationLightColor                  = glGetUniformLocation(program, "uLight.Color");
-  // clang-format on
 
   Timer<TimerType::CPU> cpuTimer;
   Timer<TimerType::GPU> gpuTimer;
 
   glEnable(GL_DEPTH_TEST);
-  glDepthFunc(GL_LESS);
+  glDepthFunc(GL_ALWAYS);
 
   bool bRunning = true;
   while(bRunning) {
@@ -397,19 +324,10 @@ auto main() -> int {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glUseProgram(program);
-    { // clang-format off
-      glUniform3fv(locationMatrialAmbient,                    1, glm::value_ptr(glm::vec3(0.2, 0.2, 0.2)));
-      glUniform3fv(locationMatrialDiffuse,                    1, glm::value_ptr(glm::vec3(1, 1, 1)));
-      glUniform3fv(locationLightColor,                        1, glm::value_ptr(glm::vec3(1, 1, 1)));
-
-      glUniform3fv(locationLightPos,                          1, glm::value_ptr(glm::vec3(10, 10, 10)));
-
-      glUniformMatrix3fv(locationMatricesNormal,              1, GL_FALSE, glm::value_ptr(N));
-      glUniformMatrix4fv(locationMatricesModelView,           1, GL_FALSE, glm::value_ptr(view));
-      glUniformMatrix4fv(locationMatricesModelViewProjection, 1, GL_FALSE, glm::value_ptr(MVP));
-
+    {
+      glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(MVP));
       scene.draw();
-    } // clang-on
+    }
     glUseProgram(0);
 
     SDL_GL_SwapWindow(pWindow);
@@ -428,4 +346,3 @@ auto main() -> int {
   SDL_Quit();
   return EXIT_SUCCESS;
 }
-

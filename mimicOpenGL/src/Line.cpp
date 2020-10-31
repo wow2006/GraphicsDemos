@@ -1,3 +1,5 @@
+// This is an open source non-commercial project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 // STL
 #include <cmath>
 // Internal
@@ -7,8 +9,8 @@ namespace mimicOpenGL {
 
 void line1(int x0, int y0, int x1, int y1, vec3_8u color, Image &output) {
   for(float i = 0.F; i < 1.F; i += 0.01F) {
-    const std::uint32_t x = x0 + (x1 - x0) * i;
-    const std::uint32_t y = y0 + (y1 - y0) * i;
+    const std::uint32_t x = static_cast<uint32_t>(x0 + (x1 - x0) * i);
+    const std::uint32_t y = static_cast<uint32_t>(y0 + (y1 - y0) * i);
 
     output(x, y) = color;
   }
@@ -16,8 +18,8 @@ void line1(int x0, int y0, int x1, int y1, vec3_8u color, Image &output) {
 
 void line2(int x0, int y0, int x1, int y1, vec3_8u color, Image &output) {
   for(auto x = x0; x < x1; ++x) {
-    const auto t = (x - x0) / static_cast<float>(x1 - x0);
-    const auto y = y0 + (y1 - y0) * t;
+    const uint32_t t = static_cast<uint32_t>((x - x0) / static_cast<float>(x1 - x0));
+    const uint32_t y = static_cast<uint32_t>(y0 + (y1 - y0) * t);
 
     output(x, y) = color;
   }
@@ -25,8 +27,8 @@ void line2(int x0, int y0, int x1, int y1, vec3_8u color, Image &output) {
 
 void line2a(int x0, int y0, int x1, int y1, vec3_8u color, Image &output) {
   for(auto x = x0; x < x1; ++x) {
-    const auto t = (x - x0) / static_cast<float>(x1 - x0);
-    const auto y = y0 * (1.F - t) + y1 * t;
+    const auto t = static_cast<uint32_t>((x - x0) / static_cast<float>(x1 - x0));
+    const auto y = static_cast<uint32_t>(y0 * (1.F - t) + y1 * t);
 
     output(x, y) = color;
   }
@@ -45,9 +47,9 @@ void line3(int x0, int y0, int x1, int y1, vec3_8u color, Image &output) {
     std::swap(y0, y1);
   }
 
-  for(int x = x0; x <= x1; ++x) {
+  for(uint32_t x = x0; x <= uint32_t(x1); ++x) {
     const float t = (x - x0) / static_cast<float>(x1 - x0);
-    const int y = y0 * (1.F - t) + y1 * t;
+    const uint32_t y = static_cast<uint32_t>(y0 * (1.F - t) + y1 * t);
     if(steep) {
       output(y, x) = color;
     } else {

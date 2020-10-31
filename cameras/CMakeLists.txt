@@ -6,16 +6,25 @@ find_package(SDL2_ttf REQUIRED)
 find_package(gl3w REQUIRED)
 find_package(glm  REQUIRED)
 
-add_executable(firstPersonShootingCamera firstPersonShootingCamera.cpp)
+add_executable(
+  firstPersonShootingCamera
+  firstPersonShootingCamera.cpp
+)
 
 target_link_libraries(
   firstPersonShootingCamera
   PRIVATE
   OpenGL::GL
   SDL2::SDL2
+  $<$<PLATFORM_ID:Windows>:SDL2::SDL2main>
   glm
   options::options
   gl3w::gl3w
   SDL2::tff
 )
 
+target_compile_definitions(
+  firstPersonShootingCamera
+  PRIVATE
+  $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN;NOMINMAX>
+)

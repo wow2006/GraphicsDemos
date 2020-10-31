@@ -1,3 +1,5 @@
+// This is an open source non-commercial project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: http://www.viva64.com
 // STL
 #include <array>
 #include <cstdlib>
@@ -5,9 +7,6 @@
 #include <iostream>
 #include <algorithm>
 #include <exception>
-// FMT
-#include <fmt/color.h>
-#include <fmt/format.h>
 // GL3W
 #include <GL/gl3w.h>
 // SDL2
@@ -172,15 +171,15 @@ public:
   }
 
   SDL_Window *m_pWindow = nullptr;
-  SDL_GLContext mContext;
-  GLuint vsProgram;
-  GLuint fsProgram;
+  SDL_GLContext mContext = nullptr;
+  GLuint vsProgram = 0;
+  GLuint fsProgram = 0;
   GLuint mVAO = 0;
   GLuint mUBO = 0;
   GLuint mProgram = 0;
 };
 
-int main() {
+int main(int argc, char *argv[]) {
   try {
     Engine engine;
     engine.initialize();

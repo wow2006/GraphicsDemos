@@ -1,3 +1,5 @@
+// This is an open source non-commercial project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 // STL
 #include <array>
 #include <chrono>
@@ -16,6 +18,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 // assimp
 #include <assimp/scene.h>
+//#include <assimp/Defines.h>
 #include <assimp/Importer.hpp>
 
 enum GL3D { SUCCESS = 0 };
@@ -41,24 +44,67 @@ static void DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity
 }
 
 static const char *vertexShaderSource = R"GLSL(
-#version 450 core
+#version 330 core
 
-layout (location = 0) in vec4 iPosition;
+layout (location = 0) in vec3 iPosition;
+layout (location = 1) in vec3 iNormal;
 
-layout (location = 0) uniform mat4 MVP;
+struct Material {
+  vec3  Ambient;
+  vec3  Diffuse;
+  vec3  Specular;
+  float Shininess;
+};
+uniform Material uMaterial;
+
+struct Light {
+  vec4 Position;
+  vec3 Ambient;
+  vec3 Diffuse;
+  vec3 Specular;
+};
+uniform Light uLight;
+
+struct Matrices {
+  mat3 Normal;
+  mat4 ModelView;
+  mat4 ModelViewProjection;
+};
+uniform Matrices uMatrices;
+
+out vec3 oVertexColor;
 
 void main() {
-  gl_Position = MVP * iPosition;
+  // La = Ka * La
+  vec3 La = uMaterial.Ambient * uLight.Ambient;
+  // Ld = Kd * Ld * dot(s, n)
+  vec3 n = normalize(uMatrices.Normal * iNormal);
+  vec4 eyeCoords = uMatrices.ModelView * vec4(iPosition, 1);
+  vec3 s = normalize(vec3(uLight.Position - eyeCoords));
+  float sDotN = max(dot(s, n), 0);
+  vec3 Ld = uMaterial.Diffuse * uLight.Diffuse * sDotN;
+  // Ls = Kd * Ls * pow(dot(r, v), f)
+  vec3 v  = normalize(-eyeCoords.xyz);
+  vec3 r  = reflect(-s, n);
+  vec3 Ls = vec3(0);
+  if(sDotN > 0.0) {
+    Ls = uMaterial.Specular * uLight.Specular * pow(max(dot(r, v), 0), uMaterial.Shininess);
+  }
+  // Color = La + Ld + Ls
+  oVertexColor = La + Ld + Ls;
+
+  gl_Position = uMatrices.ModelViewProjection * vec4(iPosition, 1);
 }
 )GLSL";
 
 static const char *fragmentShaderSource = R"GLSL(
-#version 450 core
+#version 330 core
 
-layout (location = 0) out vec4 oColor;
+in vec3 oVertexColor;
+layout (location = 0) out vec4 oFragmentColor;
 
 void main() {
-  oColor = vec4(1.0, 0, 0, 1.0);
+  oFragmentColor = vec4(oVertexColor, 1);
 }
 )GLSL";
 
@@ -67,10 +113,13 @@ struct Model {
   GLuint vbo[3];
   void draw() const {
     glBindVertexArray(vao);
-    { glDrawArrays(GL_TRIANGLES, 0, mVertices.size() / 3); }
+    { glDrawArrays(GL_TRIANGLES, 0, count); }
     glBindVertexArray(0);
   }
+  GLuint count;
   std::vector<float> mVertices;
+  std::vector<float> mNormals;
+  std::vector<float> mTexturesCoords;
 };
 
 struct Scene {
@@ -78,14 +127,26 @@ struct Scene {
 
   void initialize() {
     for(auto &model : mModels) {
+      model.count = model.mVertices.size()/3;
       glGenVertexArrays(1, &model.vao);
       glBindVertexArray(model.vao);
       {
         glGenBuffers(2, model.vbo);
-        glBindBuffer(GL_ARRAY_BUFFER, model.vbo[0]);
-        glBufferData(GL_ARRAY_BUFFER, model.mVertices.size() * 3 * sizeof(float), model.mVertices.data(), GL_STATIC_DRAW);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, nullptr);
+        {
+          constexpr auto VERTEX_ATTRIBUTE = 0U;
+          glBindBuffer(GL_ARRAY_BUFFER, model.vbo[VERTEX_ATTRIBUTE]);
+          glBufferData(GL_ARRAY_BUFFER, model.mVertices.size() * sizeof(float), model.mVertices.data(), GL_STATIC_DRAW);
+          glVertexAttribPointer(VERTEX_ATTRIBUTE, 3, GL_FLOAT, false, 0, nullptr);
+          glEnableVertexAttribArray(VERTEX_ATTRIBUTE);
+        }
+
+        {
+          constexpr auto NORMAL_ATTRIBUTE = 1U;
+          glBindBuffer(GL_ARRAY_BUFFER, model.vbo[NORMAL_ATTRIBUTE]);
+          glBufferData(GL_ARRAY_BUFFER, model.mNormals.size() * sizeof(float), model.mNormals.data(), GL_STATIC_DRAW);
+          glVertexAttribPointer(NORMAL_ATTRIBUTE, 3, GL_FLOAT, false, 0, nullptr);
+          glEnableVertexAttribArray(NORMAL_ATTRIBUTE);
+        }
       }
       glBindVertexArray(0);
     }
@@ -101,12 +162,19 @@ struct Scene {
 static auto LoadMesh(const aiMesh *pMesh) -> Model {
   Model model;
   model.mVertices.resize(pMesh->mNumVertices * 3);
+  model.mNormals.resize(pMesh->mNumVertices * 3);
+  //model.mTexturesCoords.reserve(pMesh->mNumVertices * 3);
 
   glm::vec3 *pVertex = reinterpret_cast<glm::vec3 *>(model.mVertices.data());
+  glm::vec3 *pNormal = reinterpret_cast<glm::vec3 *>(model.mNormals.data());
   for(auto i = 0U; i < pMesh->mNumVertices; i++) {
     const aiVector3D *pPos = &(pMesh->mVertices[i]);
+    const aiVector3D *pNrm = &(pMesh->mNormals[i]);
+    //const aiVector3D* pTexCoord = paiMesh->HasTextureCoords(0) ? &(paiMesh->mTextureCoords[0][i]) : &Zero3D;
     *pVertex = {pPos->x, pPos->y, pPos->z};
+    *pNormal = {pNrm->x, pNrm->y, pNrm->z};
     ++pVertex;
+    ++pNormal;
   }
   return model;
 }
@@ -296,17 +364,33 @@ auto main() -> int {
     glDeleteShader(fragmentShader);
   }
 
-  const auto ratio = static_cast<float>(gWidth) / static_cast<float>(gHeight);
+  const auto ratio       = static_cast<float>(gWidth) / static_cast<float>(gHeight);
   const auto prespective = glm::perspective(45.F, ratio, 0.001F, 1000.F);
-  const auto view = glm::lookAt(glm::vec3{5, 5, 5}, glm::vec3{}, glm::vec3{0, 1, 0});
+  const auto view        = glm::lookAt(glm::vec3{2, 2, 2}, glm::vec3{}, glm::vec3{0, 1, 0});
 
   const auto MVP = prespective * view;
+
+  const auto N = glm::mat3(glm::vec3(view[0]), glm::vec3(view[1]), glm::vec3(view[2]));
+
+  auto locationMatrialAmbient              = glGetUniformLocation(program, "uMaterial.Ambient");
+  auto locationMatrialDiffuse              = glGetUniformLocation(program, "uMaterial.Diffuse");
+  auto locationMatrialSpecular             = glGetUniformLocation(program, "uMaterial.Specular");
+  auto locationMatrialShinness             = glGetUniformLocation(program, "uMaterial.Shininess");
+
+  auto locationLightPos                    = glGetUniformLocation(program, "uLight.Position");
+  auto locationLightAmbient                = glGetUniformLocation(program, "uLight.Ambient");
+  auto locationLightDiffuse                = glGetUniformLocation(program, "uLight.Diffuse");
+  auto locationLightSpecular               = glGetUniformLocation(program, "uLight.Specular");
+
+  auto locationMatricesNormal              = glGetUniformLocation(program, "uMatrices.Normal");
+  auto locationMatricesModelView           = glGetUniformLocation(program, "uMatrices.ModelView");
+  auto locationMatricesModelViewProjection = glGetUniformLocation(program, "uMatrices.ModelViewProjection");
 
   Timer<TimerType::CPU> cpuTimer;
   Timer<TimerType::GPU> gpuTimer;
 
   glEnable(GL_DEPTH_TEST);
-  glDepthFunc(GL_ALWAYS);
+  glDepthFunc(GL_LESS);
 
   bool bRunning = true;
   while(bRunning) {
@@ -323,7 +407,21 @@ auto main() -> int {
 
     glUseProgram(program);
     {
-      glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(MVP));
+      glUniform3fv(locationMatrialAmbient, 1, glm::value_ptr(glm::vec3(0.1, 0.1, 0.1)));
+      glUniform3fv(locationMatrialDiffuse, 1, glm::value_ptr(glm::vec3(1, 0, 0)));
+      glUniform3fv(locationMatrialSpecular, 1, glm::value_ptr(glm::vec3(1, 1, 1)));
+      glUniform1f(locationMatrialShinness, 1);
+
+      glUniform3fv(locationLightAmbient,   1, glm::value_ptr(glm::vec3(0.1, 0.1, 0.1)));
+      glUniform3fv(locationLightDiffuse,   1, glm::value_ptr(glm::vec3(1, 1, 1)));
+      glUniform3fv(locationLightSpecular,  1, glm::value_ptr(glm::vec3(1, 1, 1)));
+
+      glUniform4fv(locationLightPos,       1, glm::value_ptr(glm::vec4(10, 10, 10, 1)));
+
+      glUniformMatrix3fv(locationMatricesNormal,              1, GL_FALSE, glm::value_ptr(N));
+      glUniformMatrix4fv(locationMatricesModelView,           1, GL_FALSE, glm::value_ptr(view));
+      glUniformMatrix4fv(locationMatricesModelViewProjection, 1, GL_FALSE, glm::value_ptr(MVP));
+
       scene.draw();
     }
     glUseProgram(0);

@@ -1,7 +1,9 @@
 # ${CMAKE_SOURCE_DIR}/shaders/triangle/CMakeLists.txt
-set(demos
+set(
+  demos
   triangle450
   triangle450UseUinform
+  triangle450UseVertexBufferObject
 )
 
 foreach(demo IN LISTS demos)
@@ -14,8 +16,15 @@ foreach(demo IN LISTS demos)
     ${demo}
     PRIVATE
     SDL2::SDL2
+    $<$<PLATFORM_ID:Windows>:SDL2::SDL2main>
     options::options
     gl3w::gl3w
+  )
+
+  target_compile_definitions(
+    ${demo}
+    PRIVATE
+    $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN;NOMINMAX>
   )
 endforeach()
 

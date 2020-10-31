@@ -1,3 +1,5 @@
+// This is an open source non-commercial project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 // STL
 #include <array>
 #include <chrono>
@@ -16,6 +18,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 // assimp
 #include <assimp/scene.h>
+//#include <assimp/Defines.h>
 #include <assimp/Importer.hpp>
 
 enum GL3D { SUCCESS = 0 };
@@ -41,28 +44,52 @@ static void DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity
 }
 
 static const char *vertexShaderSource = R"GLSL(
-#version 450 core
+#version 330 core
 
 layout (location = 0) in vec3 iPosition;
 layout (location = 1) in vec3 iNormal;
 
-uniform struct Matrices {
-  mat4 ModelViewProjection;
+struct Material {
+vec3 Diffuse;
 };
-layout (location = 2) uniform Matrices uMatrices;
+uniform Material uMatrial;
+
+struct Light {
+vec4 Pos;
+vec3 Color;
+};
+uniform Light uLight;
+
+struct Matrices {
+mat3 Normal;
+mat4 ModelView;
+mat4 ModelViewProjection;
+};
+uniform Matrices uMatrices;
+
+out vec3 LightIntensity;
 
 void main() {
+  vec3 n        = normalize(uMatrices.Normal * iNormal);
+  vec4 eyeCoord = uMatrices.ModelView * vec4(iPosition, 1);
+  vec3 s        = normalize(vec3(uLight.Pos - eyeCoord));
+  float sn      = max(dot(s, n), 0);
+
+  // L = Ld . Kd . s . n
+  LightIntensity = uLight.Color * uMatrial.Diffuse * sn;
+
   gl_Position = uMatrices.ModelViewProjection * vec4(iPosition, 1);
 }
 )GLSL";
 
 static const char *fragmentShaderSource = R"GLSL(
-#version 450 core
+#version 330 core
 
-layout (location = 0) out vec4 oFragmentColor;
+in vec3 LightIntensity;
+layout (location = 0) out vec4 oColor;
 
 void main() {
-  oFragmentColor = vec4(1, 0, 0, 1);
+  oColor = vec4(LightIntensity, 1.0);
 }
 )GLSL";
 
@@ -257,9 +284,9 @@ struct Timer<TimerType::GPU> {
   GLuint mQueries[2];
 };
 
-constexpr auto gTitle      = "Scene";
-constexpr auto gWidth      = 640U;
-constexpr auto gHeight     = 480U;
+constexpr auto gTitle = "Scene";
+constexpr auto gWidth = 640U;
+constexpr auto gHeight = 480U;
 constexpr auto SDL_SUCCESS = 0;
 
 auto main() -> int {
@@ -330,19 +357,12 @@ auto main() -> int {
 
   const auto N = glm::mat3(glm::vec3(view[0]), glm::vec3(view[1]), glm::vec3(view[2]));
 
-  auto locationMatrialAmbient              = glGetUniformLocation(program, "uMaterial.Ambient");
-  auto locationMatrialDiffuse              = glGetUniformLocation(program, "uMaterial.Diffuse");
-  auto locationMatrialSpecular             = glGetUniformLocation(program, "uMaterial.Specular");
-  auto locationMatrialShinness             = glGetUniformLocation(program, "uMaterial.Shininess");
-
-  auto locationLightPos                    = glGetUniformLocation(program, "uLight.Position");
-  auto locationLightAmbient                = glGetUniformLocation(program, "uLight.Ambient");
-  auto locationLightDiffuse                = glGetUniformLocation(program, "uLight.Diffuse");
-  auto locationLightSpecular               = glGetUniformLocation(program, "uLight.Specular");
-
+  auto locationMatrialDiffuse              = glGetUniformLocation(program, "uMatrial.Diffuse");
   auto locationMatricesNormal              = glGetUniformLocation(program, "uMatrices.Normal");
   auto locationMatricesModelView           = glGetUniformLocation(program, "uMatrices.ModelView");
   auto locationMatricesModelViewProjection = glGetUniformLocation(program, "uMatrices.ModelViewProjection");
+  auto locationLightPos                    = glGetUniformLocation(program, "uLight.Pos");
+  auto locationLightColor                  = glGetUniformLocation(program, "uLight.Color");
 
   Timer<TimerType::CPU> cpuTimer;
   Timer<TimerType::GPU> gpuTimer;
@@ -365,16 +385,10 @@ auto main() -> int {
 
     glUseProgram(program);
     {
-      glUniform3fv(locationMatrialAmbient, 1, glm::value_ptr(glm::vec3(0.1, 0.1, 0.1)));
-      glUniform3fv(locationMatrialDiffuse, 1, glm::value_ptr(glm::vec3(1, 0, 0)));
-      glUniform3fv(locationMatrialSpecular, 1, glm::value_ptr(glm::vec3(1, 1, 1)));
-      glUniform1f(locationMatrialShinness, 1);
+      glUniform3fv(locationMatrialDiffuse,   1, glm::value_ptr(glm::vec3(1, 1, 1)));
+      glUniform3fv(locationLightColor, 1, glm::value_ptr(glm::vec3(1, 1, 1)));
 
-      glUniform3fv(locationLightAmbient,   1, glm::value_ptr(glm::vec3(0.1, 0.1, 0.1)));
-      glUniform3fv(locationLightDiffuse,   1, glm::value_ptr(glm::vec3(1, 1, 1)));
-      glUniform3fv(locationLightSpecular,  1, glm::value_ptr(glm::vec3(1, 1, 1)));
-
-      glUniform4fv(locationLightPos,       1, glm::value_ptr(glm::vec4(10, 10, 10, 1)));
+      glUniform4fv(locationLightPos, 1, glm::value_ptr(glm::vec4(10, 10, 10, 1)));
 
       glUniformMatrix3fv(locationMatricesNormal,              1, GL_FALSE, glm::value_ptr(N));
       glUniformMatrix4fv(locationMatricesModelView,           1, GL_FALSE, glm::value_ptr(view));
@@ -400,4 +414,3 @@ auto main() -> int {
   SDL_Quit();
   return EXIT_SUCCESS;
 }
-

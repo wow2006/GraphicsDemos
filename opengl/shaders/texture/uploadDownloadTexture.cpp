@@ -1,3 +1,5 @@
+// This is an open source non-commercial project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 // STL
 #include <array>
 #include <vector>
@@ -140,16 +142,11 @@ public:
 
   static GLuint createTexture() {
     GLuint renderedTexture = 0;
-    glCreateTextures(GL_TEXTURE_2D, 1, &renderedTexture);
-
-    glTextureParameteri(renderedTexture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
-    glTextureParameteri(renderedTexture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
-    glTextureParameteri(renderedTexture, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTextureParameteri(renderedTexture, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-    glTextureStorage2D(renderedTexture, 1, GL_RGB8, TextureWidth, TextureHeight);
-    glTextureSubImage2D(renderedTexture, 0, 0, 0, TextureWidth, TextureHeight, GL_RGB, GL_UNSIGNED_BYTE, g_cTexture.data());
-
+    glGenTextures(1, &renderedTexture);
+    glBindTexture(GL_TEXTURE_2D, renderedTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, TextureWidth, TextureHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, g_cTexture.data());
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     return renderedTexture;
   }
 
@@ -181,7 +178,8 @@ public:
       }
 
       // Draw into FrameBuffer
-      glBindTextureUnit(0, mRenderedTexture);
+      glActiveTexture(GL_TEXTURE0);
+      glBindTexture(GL_TEXTURE_2D, mRenderedTexture);
       glBindProgramPipeline(mProgram);
       glDrawArrays(GL_TRIANGLES, 0, VERTICES_TO_DRAW);
       SDL_GL_SwapWindow(m_pWindow);
@@ -190,7 +188,9 @@ public:
 
   void cleanup() {
     std::vector<uint8_t> buffer(TextureWidth * TextureChannels * TextureHeight);
-    glGetTextureImage(mRenderedTexture, 0, GL_RGB, GL_UNSIGNED_BYTE, buffer.size(), buffer.data());
+    glBindTexture(GL_TEXTURE_2D, mRenderedTexture);
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, buffer.data());
+    glBindTexture(GL_TEXTURE_2D, 0);
     stbi_write_png("buffer.png", TextureWidth, TextureHeight, 3, buffer.data(), TextureWidth * TextureChannels);
 
     glBindProgramPipeline(0);

@@ -1,3 +1,5 @@
+// This is an open source non-commercial project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 // STL
 #include <array>
 #include <chrono>
@@ -16,7 +18,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 // assimp
 #include <assimp/scene.h>
-//#include <assimp/Defines.h>
 #include <assimp/Importer.hpp>
 
 enum GL3D { SUCCESS = 0 };
@@ -42,54 +43,28 @@ static void DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity
 }
 
 static const char *vertexShaderSource = R"GLSL(
-#version 330 core
+#version 450 core
 
 layout (location = 0) in vec3 iPosition;
 layout (location = 1) in vec3 iNormal;
 
-struct Matrices {
-mat3 Normal;
-mat4 ModelView;
-mat4 ModelViewProjection;
+uniform struct Matrices {
+  mat4 ModelViewProjection;
 };
-uniform Matrices uMatrices;
-
-smooth out vec3 oNormal;
-smooth out vec3 oPosition;
+layout (location = 2) uniform Matrices uMatrices;
 
 void main() {
-  oNormal     = normalize(uMatrices.Normal * iNormal);
-  oPosition   = vec3(uMatrices.ModelView * vec4(iPosition, 1));
   gl_Position = uMatrices.ModelViewProjection * vec4(iPosition, 1);
 }
 )GLSL";
 
 static const char *fragmentShaderSource = R"GLSL(
-#version 330 core
+#version 450 core
 
-struct Material {
-vec3 Ambient;
-vec3 Diffuse;
-};
-uniform Material uMatrial;
-
-struct Light {
-vec3 Pos;
-vec3 Color;
-};
-uniform Light uLight;
-
-in vec3 oNormal;
-in vec3 oPosition;
-layout (location = 0) out vec4 oColor;
+layout (location = 0) out vec4 oFragmentColor;
 
 void main() {
-  vec3 s        = normalize(uLight.Pos - oPosition);
-
-  vec3 ambient = uMatrial.Ambient;
-  vec3 diffuse = uLight.Color * uMatrial.Diffuse * max(dot(s, oNormal), 0);
-
-  oColor = vec4(ambient + diffuse, 1.0);
+  oFragmentColor = vec4(1, 0, 0, 1);
 }
 )GLSL";
 
@@ -284,9 +259,9 @@ struct Timer<TimerType::GPU> {
   GLuint mQueries[2];
 };
 
-constexpr auto gTitle = "Scene";
-constexpr auto gWidth = 640U;
-constexpr auto gHeight = 480U;
+constexpr auto gTitle      = "Scene";
+constexpr auto gWidth      = 640U;
+constexpr auto gHeight     = 480U;
 constexpr auto SDL_SUCCESS = 0;
 
 auto main() -> int {
@@ -357,13 +332,19 @@ auto main() -> int {
 
   const auto N = glm::mat3(glm::vec3(view[0]), glm::vec3(view[1]), glm::vec3(view[2]));
 
-  auto locationMatrialAmbient              = glGetUniformLocation(program, "uMatrial.Ambient");
-  auto locationMatrialDiffuse              = glGetUniformLocation(program, "uMatrial.Diffuse");
+  auto locationMatrialAmbient              = glGetUniformLocation(program, "uMaterial.Ambient");
+  auto locationMatrialDiffuse              = glGetUniformLocation(program, "uMaterial.Diffuse");
+  auto locationMatrialSpecular             = glGetUniformLocation(program, "uMaterial.Specular");
+  auto locationMatrialShinness             = glGetUniformLocation(program, "uMaterial.Shininess");
+
+  auto locationLightPos                    = glGetUniformLocation(program, "uLight.Position");
+  auto locationLightAmbient                = glGetUniformLocation(program, "uLight.Ambient");
+  auto locationLightDiffuse                = glGetUniformLocation(program, "uLight.Diffuse");
+  auto locationLightSpecular               = glGetUniformLocation(program, "uLight.Specular");
+
   auto locationMatricesNormal              = glGetUniformLocation(program, "uMatrices.Normal");
   auto locationMatricesModelView           = glGetUniformLocation(program, "uMatrices.ModelView");
   auto locationMatricesModelViewProjection = glGetUniformLocation(program, "uMatrices.ModelViewProjection");
-  auto locationLightPos                    = glGetUniformLocation(program, "uLight.Pos");
-  auto locationLightColor                  = glGetUniformLocation(program, "uLight.Color");
 
   Timer<TimerType::CPU> cpuTimer;
   Timer<TimerType::GPU> gpuTimer;
@@ -386,11 +367,16 @@ auto main() -> int {
 
     glUseProgram(program);
     {
-      glUniform3fv(locationMatrialAmbient,                    1, glm::value_ptr(glm::vec3(0.2, 0.2, 0.2)));
-      glUniform3fv(locationMatrialDiffuse,                    1, glm::value_ptr(glm::vec3(1, 1, 1)));
-      glUniform3fv(locationLightColor,                        1, glm::value_ptr(glm::vec3(1, 1, 1)));
+      glUniform3fv(locationMatrialAmbient, 1, glm::value_ptr(glm::vec3(0.1, 0.1, 0.1)));
+      glUniform3fv(locationMatrialDiffuse, 1, glm::value_ptr(glm::vec3(1, 0, 0)));
+      glUniform3fv(locationMatrialSpecular, 1, glm::value_ptr(glm::vec3(1, 1, 1)));
+      glUniform1f(locationMatrialShinness, 1);
 
-      glUniform3fv(locationLightPos,                          1, glm::value_ptr(glm::vec3(10, 10, 10)));
+      glUniform3fv(locationLightAmbient,   1, glm::value_ptr(glm::vec3(0.1, 0.1, 0.1)));
+      glUniform3fv(locationLightDiffuse,   1, glm::value_ptr(glm::vec3(1, 1, 1)));
+      glUniform3fv(locationLightSpecular,  1, glm::value_ptr(glm::vec3(1, 1, 1)));
+
+      glUniform4fv(locationLightPos,       1, glm::value_ptr(glm::vec4(10, 10, 10, 1)));
 
       glUniformMatrix3fv(locationMatricesNormal,              1, GL_FALSE, glm::value_ptr(N));
       glUniformMatrix4fv(locationMatricesModelView,           1, GL_FALSE, glm::value_ptr(view));
@@ -416,3 +402,4 @@ auto main() -> int {
   SDL_Quit();
   return EXIT_SUCCESS;
 }
+

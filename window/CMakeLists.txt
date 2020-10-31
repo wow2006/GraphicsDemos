@@ -1,9 +1,24 @@
 # ${CMAKE_SOURCE_DIR}/window/CMakeLists.txt
 find_package(SDL2 REQUIRED)
 
-add_executable(simpleWindowSDL simpleWindowSDL.cpp)
+add_executable(
+  simpleWindowSDL
+  simpleWindowSDL.cpp
+)
 
-target_link_libraries(simpleWindowSDL PRIVATE SDL2::SDL2 options::options)
+target_link_libraries(
+  simpleWindowSDL
+  PRIVATE
+  SDL2::SDL2
+  $<$<PLATFORM_ID:Windows>:SDL2::SDL2main>
+  options::options
+)
+
+target_compile_definitions(
+  simpleWindowSDL
+  PRIVATE
+  $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN;NOMINMAX>
+)
 
 if(ENABLE_GLFW)
   find_package(GLFW REQUIRED)

@@ -1,3 +1,5 @@
+// This is an open source non-commercial project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: http://www.viva64.com
 // STL
 #include <array>
 #include <cstdlib>
@@ -35,7 +37,7 @@ inline auto readTextFile(const std::string& fileName) -> std::string {
   return output;
 }
 
-static void DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const GLvoid *pUserParam) {
+static void DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *pUserParam) {
   (void)type;
   (void)id;
   (void)severity;
@@ -169,7 +171,7 @@ public:
   GLuint mProgram = 0;
 };
 
-int main() {
+int main(int argc, char* argv[]) {
   try {
     Engine engine;
     engine.initialize();

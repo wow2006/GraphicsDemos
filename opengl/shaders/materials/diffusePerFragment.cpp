@@ -1,3 +1,5 @@
+// This is an open source non-commercial project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 // STL
 #include <array>
 #include <chrono>
@@ -45,15 +47,21 @@ static const char *vertexShaderSource = R"GLSL(
 #version 330 core
 
 layout (location = 0) in vec3 iPosition;
+layout (location = 1) in vec3 iNormal;
 
 struct Matrices {
+mat3 Normal;
+mat4 ModelView;
 mat4 ModelViewProjection;
 };
 uniform Matrices uMatrices;
 
-out vec3 oPosition;
+smooth out vec3 oNormal;
+smooth out vec3 oPosition;
 
 void main() {
+  oNormal     = normalize(uMatrices.Normal * iNormal);
+  oPosition   = vec3(uMatrices.ModelView * vec4(iPosition, 1));
   gl_Position = uMatrices.ModelViewProjection * vec4(iPosition, 1);
 }
 )GLSL";
@@ -63,13 +71,27 @@ static const char *fragmentShaderSource = R"GLSL(
 
 struct Material {
 vec3 Ambient;
+vec3 Diffuse;
 };
 uniform Material uMatrial;
 
+struct Light {
+vec3 Pos;
+vec3 Color;
+};
+uniform Light uLight;
+
+in vec3 oNormal;
+in vec3 oPosition;
 layout (location = 0) out vec4 oColor;
 
 void main() {
-  oColor = vec4(uMatrial.Ambient, 1.0);
+  vec3 s        = normalize(uLight.Pos - oPosition);
+
+  vec3 ambient = uMatrial.Ambient;
+  vec3 diffuse = uLight.Color * uMatrial.Diffuse * max(dot(s, oNormal), 0);
+
+  oColor = vec4(ambient + diffuse, 1.0);
 }
 )GLSL";
 
@@ -338,7 +360,12 @@ auto main() -> int {
   const auto N = glm::mat3(glm::vec3(view[0]), glm::vec3(view[1]), glm::vec3(view[2]));
 
   auto locationMatrialAmbient              = glGetUniformLocation(program, "uMatrial.Ambient");
+  auto locationMatrialDiffuse              = glGetUniformLocation(program, "uMatrial.Diffuse");
+  auto locationMatricesNormal              = glGetUniformLocation(program, "uMatrices.Normal");
+  auto locationMatricesModelView           = glGetUniformLocation(program, "uMatrices.ModelView");
   auto locationMatricesModelViewProjection = glGetUniformLocation(program, "uMatrices.ModelViewProjection");
+  auto locationLightPos                    = glGetUniformLocation(program, "uLight.Pos");
+  auto locationLightColor                  = glGetUniformLocation(program, "uLight.Color");
 
   Timer<TimerType::CPU> cpuTimer;
   Timer<TimerType::GPU> gpuTimer;
@@ -362,6 +389,13 @@ auto main() -> int {
     glUseProgram(program);
     {
       glUniform3fv(locationMatrialAmbient,                    1, glm::value_ptr(glm::vec3(0.2, 0.2, 0.2)));
+      glUniform3fv(locationMatrialDiffuse,                    1, glm::value_ptr(glm::vec3(1, 1, 1)));
+      glUniform3fv(locationLightColor,                        1, glm::value_ptr(glm::vec3(1, 1, 1)));
+
+      glUniform3fv(locationLightPos,                          1, glm::value_ptr(glm::vec3(10, 10, 10)));
+
+      glUniformMatrix3fv(locationMatricesNormal,              1, GL_FALSE, glm::value_ptr(N));
+      glUniformMatrix4fv(locationMatricesModelView,           1, GL_FALSE, glm::value_ptr(view));
       glUniformMatrix4fv(locationMatricesModelViewProjection, 1, GL_FALSE, glm::value_ptr(MVP));
 
       scene.draw();

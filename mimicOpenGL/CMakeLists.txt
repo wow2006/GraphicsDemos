@@ -12,6 +12,7 @@ target_link_libraries(
   mimicOpenGL
   PRIVATE
   SDL2::SDL2
+  $<$<PLATFORM_ID:Windows>:SDL2::SDL2main>
   options::options
 )
 
@@ -21,5 +22,10 @@ target_include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/include/
 )
 
-add_subdirectory(test)
+target_compile_definitions(
+  mimicOpenGL
+  PRIVATE
+  $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN;NOMINMAX>
+)
 
+add_subdirectory(test)

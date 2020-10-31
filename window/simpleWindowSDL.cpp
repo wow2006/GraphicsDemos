@@ -1,9 +1,10 @@
 // This is an open source non-commercial project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 // STL
-#include <optional>
+#include <string>
 #include <cstdlib>
 #include <iostream>
+#include <optional>
 #include <string_view>
 // SDL
 #include <SDL2/SDL.h>

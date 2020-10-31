@@ -2,6 +2,7 @@
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 // STL
 #include <array>
+#include <string>
 #include <chrono>
 #include <cstdlib>
 #include <optional>
@@ -482,7 +483,7 @@ auto main(int argc, char *argv[]) -> int {
     };
 
     glGenVertexArrays(1, &vao);
-    glGenBuffers(vbo.size(), vbo.data());
+    glGenBuffers(static_cast<GLsizei>(vbo.size()), vbo.data());
     glBindVertexArray(vao);
     {
       glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
