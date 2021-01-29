@@ -8,8 +8,11 @@ Then I will implement it using a library of my choice SDL2, which I will use in 
 - [Programable pipeline OpenGL X11](programmablePipelineX11.cpp)
 
 ## Win32
-- `WIP` [Fixed pipeline OpenGL Win32](fixedPipelineOpenGLWin32.cpp)
-- `TODO` Programable pipeline OpenGL Win32
+- [Fixed pipeline OpenGL Win32](fixedPipelineOpenGLWin32.cpp)
+- [Programable pipeline OpenGL Win32](programmablePipelineGl3wWin32.cpp)
+
+### NOTE:
+- [Windows Modern OpenGL Context](https://gist.github.com/nickrolfe/1127313ed1dbf80254b614a721b3ee9c)
 
 ## Android
 - `TODO` OpenGL ES 1.0

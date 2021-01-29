@@ -60,6 +60,27 @@ if(WIN32)
     NOMINMAX
     WIN32_LEAN_AND_MEAN
   )
+
+  add_executable(
+    programmablePipelineGl3wWin32
+    WIN32
+    programmablePipelineGl3wWin32.cpp
+  )
+
+  target_link_libraries(
+    programmablePipelineGl3wWin32
+    PRIVATE
+    gl3w::gl3w
+    OpenGL::GL
+    options::options
+  )
+
+  target_compile_definitions(
+    programmablePipelineGl3wWin32
+    PRIVATE
+    NOMINMAX
+    WIN32_LEAN_AND_MEAN
+  )
 endif()
 
 # ===================================

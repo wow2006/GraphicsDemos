@@ -29,7 +29,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
     return 0;
   case WM_SIZE:
       resize(hWnd);
-      break; 
+      break;
   }
   return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
@@ -65,32 +65,30 @@ bool SetupPixelFormat(HDC hdc) {
   }
 
   return true;
-} 
+}
 
-HWND CreateMainWindow(HINSTANCE hInstance, int nCmdShow) {
-  int width = 640;
-  int height = 480;
-
-  constexpr auto cTitle = std::string_view{"HelloWorld!"};
-
-  WNDCLASS windowClass = {};
+static HWND CreateMainWindow(HINSTANCE hInstance, int nCmdShow) {
+  constexpr int  Width  = 640;
+  constexpr int  Height = 480;
+  constexpr auto Title  = std::string_view{"HelloWorld!"};
 
   // clang-format off
+  WNDCLASS windowClass = {};
   windowClass.lpfnWndProc   = WindowProc;
   windowClass.hInstance     = hInstance;
-  windowClass.lpszClassName = cTitle.data();
+  windowClass.lpszClassName = Title.data();
   // clang-format on
 
   RegisterClass(&windowClass);
 
   HWND hWnd = CreateWindowEx(0,
-                             cTitle.data(),
-                             cTitle.data(),
+                             Title.data(),
+                             Title.data(),
                              WS_OVERLAPPEDWINDOW,
                              CW_USEDEFAULT,
                              CW_USEDEFAULT,
-                             width,
-                             height,
+                             Width,
+                             Height,
                              nullptr,    // Parent window
                              nullptr,    // Menu
                              hInstance,  // Instance handle
@@ -105,6 +103,7 @@ HWND CreateMainWindow(HINSTANCE hInstance, int nCmdShow) {
   ShowWindow(hWnd, nCmdShow);
   return hWnd;
 }
+
 std::pair<HGLRC, HDC> CreateOpenGLContext(HWND hWnd) {
   const auto hDC = GetDC(hWnd);
   if(!SetupPixelFormat(hDC)) {
@@ -115,10 +114,12 @@ std::pair<HGLRC, HDC> CreateOpenGLContext(HWND hWnd) {
   wglMakeCurrent(hDC, hRC);
   return {hRC, hDC};
 }
+
 void InitializeOpenGL(HWND hWnd) {
   resize(hWnd);
   glClearColor(1, 0, 0, 1);
 }
+
 void Draw(HDC hDC) {
   glClear(GL_COLOR_BUFFER_BIT);
   glBegin(GL_QUADS);
@@ -129,6 +130,7 @@ void Draw(HDC hDC) {
   glEnd();
   SwapBuffers(hDC);
 }
+
 void MainLoop(HDC hDC) {
   bool bRunning = true;
   while(bRunning) {
@@ -145,6 +147,7 @@ void MainLoop(HDC hDC) {
     Draw(hDC);
   }
 }
+
 void Cleanup(HWND hWindow, HDC hDC, HGLRC hRC) {
   wglDeleteContext(hRC);
   ReleaseDC(hWindow, hDC);
