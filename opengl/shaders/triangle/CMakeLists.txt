@@ -5,6 +5,7 @@ set(
   triangle450UseUinform
   triangle450UseVertexBufferObject
   triangle450UseVertexBufferObjectColor
+  triangle450UseVertexBufferObjectColor2
 )
 
 foreach(demo IN LISTS demos)
