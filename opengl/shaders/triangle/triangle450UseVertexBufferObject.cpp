@@ -150,13 +150,12 @@ public:
     glCreateBuffers(1, &mVBO);
     glNamedBufferStorage(mVBO, sizeof(float) * cPositions.size(), cPositions.data(), GL_DYNAMIC_STORAGE_BIT);
 
-    glVertexArrayVertexBuffer(mVAO, 0, mVBO, 0, sizeof(float) * 4);
-
-    glEnableVertexArrayAttrib(mVAO, 0);
-
-    glVertexArrayAttribFormat(mVAO, 0, 4, GL_FLOAT, GL_FALSE, 0);
-
-    glVertexArrayAttribBinding(mVAO, 0, 0);
+    constexpr uint32_t positionAttrib  = 0;
+    constexpr uint32_t positionBinding = 0;
+    glVertexArrayAttribBinding(mVAO, positionAttrib,  positionBinding);
+    glVertexArrayVertexBuffer(mVAO,  positionBinding, mVBO, 0, sizeof(float) * 4);
+    glVertexArrayAttribFormat(mVAO,  positionAttrib,  4, GL_FLOAT, GL_FALSE, 0);
+    glEnableVertexArrayAttrib(mVAO,  positionAttrib);
   }
 
   void draw() const {
