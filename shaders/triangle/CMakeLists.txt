@@ -17,7 +17,7 @@ foreach(demo IN LISTS demos)
     SDL2::SDL2
     options::options
     gl3w::gl3w
-    fmt::fmt
+    fmt::fmt-header-only
   )
 endforeach()
 
