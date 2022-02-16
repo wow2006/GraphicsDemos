@@ -37,3 +37,4 @@ compile_commands.json
 .vscode/
 CMakeSettings.json
 .clangd/
+.cache/
