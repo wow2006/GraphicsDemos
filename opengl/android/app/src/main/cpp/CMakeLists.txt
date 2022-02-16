@@ -1,5 +1,5 @@
 # ${CMAKE_SOURCE_DIR}/CMakeLists.txt
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.16)
 project(SimpleOpenGL C CXX)
 
 add_library(
