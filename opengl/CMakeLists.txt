@@ -71,4 +71,3 @@ if(ENABLE_Qt5)
 endif()
 
 add_subdirectory(shaders)
-

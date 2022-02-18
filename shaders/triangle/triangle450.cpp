@@ -163,7 +163,7 @@ public:
   GLuint mProgram = 0;
 };
 
-int main() {
+int main(int argc, char *argv[]) {
   try {
     Engine engine;
     engine.initialize();

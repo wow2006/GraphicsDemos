@@ -1,4 +1,6 @@
 # ${CMAKE_SOURCE_DIR}/opengl/shaders/CMakeLists.txt
+find_package(glm REQUIRED)
+
 set(
   samples
   drawRedPointShader
@@ -28,6 +30,7 @@ foreach(sample IN LISTS samples)
     SDL2::SDL2main
     options::options
     gl3w::gl3w
+    glm::glm
   )
 
   target_compile_definitions(
