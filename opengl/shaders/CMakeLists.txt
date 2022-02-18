@@ -1,5 +1,12 @@
 # ${CMAKE_SOURCE_DIR}/opengl/shaders/CMakeLists.txt
 find_package(glm REQUIRED)
+if(NOT TARGET glm::glm)
+  add_library(
+    glm::glm
+    ALIAS
+    glm
+  )
+endif()
 
 set(
   samples
