@@ -1,4 +1,5 @@
 // STL
+#include <array>
 #include <chrono>
 #include <vector>
 #include <cstdlib>
@@ -261,7 +262,7 @@ constexpr auto gWidth      = 640U;
 constexpr auto gHeight     = 480U;
 constexpr auto SDL_SUCCESS = 0;
 
-auto main() -> int {
+int main(int argc, char *argv[]) {
   if(SDL_Init(SDL_INIT_VIDEO) != SDL_SUCCESS) {
     std::cerr << "Can not initialize \"" << SDL_GetError() << "\"\n";
     return EXIT_FAILURE;

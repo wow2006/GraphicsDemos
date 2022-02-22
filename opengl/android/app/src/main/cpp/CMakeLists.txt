@@ -1,6 +1,8 @@
 # ${CMAKE_SOURCE_DIR}/CMakeLists.txt
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.16)
 project(SimpleOpenGL C CXX)
+
+message("${ANDROID_NDK}")
 
 add_library(
   native_app_glue
@@ -12,6 +14,15 @@ target_include_directories(
   native_app_glue
   SYSTEM PUBLIC
   ${ANDROID_NDK}/sources/android/native_app_glue/
+)
+
+target_link_libraries(
+  native_app_glue
+  PUBLIC
+  EGL
+  GLESv1_CM
+  android
+  log
 )
 
 add_library(
@@ -29,8 +40,6 @@ target_include_directories(
 target_link_libraries(
   ${PROJECT_NAME}
   PRIVATE
-  android
-  log
   native_app_glue
 )
 

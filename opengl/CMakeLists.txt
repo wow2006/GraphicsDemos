@@ -17,19 +17,34 @@ if(UNIX AND ENABLE_X11)
 endif()
 
 if(WIN32 AND ENABLE_WIN32)
-  add_executable(
+  set(
+    winDemos
     fixedPipelineOpenGLWin32
-    WIN32
-    fixedPipelineOpenGLWin32.cpp
+    programmablePipelineOpenGLWin32
   )
 
-  target_link_libraries(
-    fixedPipelineOpenGLWin32
-    PRIVATE
-    OpenGL::GL
-    OpenGL::GLU
-    options::options
-  )
+  foreach(demo IN LISTS winDemos)
+      add_executable(
+        ${demo}
+        WIN32
+        ${demo}.cpp
+      )
+
+      target_link_libraries(
+        ${demo}
+        PRIVATE
+        OpenGL::GL
+        OpenGL::GLU
+        options::options
+      )
+
+      target_compile_definitions(
+        ${demo}
+        PRIVATE
+        NOMINMAX
+        WIN32_LEAN_AND_MEAN
+      )
+  endforeach()
 endif()
 
 set(
@@ -71,4 +86,3 @@ if(ENABLE_Qt5)
 endif()
 
 add_subdirectory(shaders)
-

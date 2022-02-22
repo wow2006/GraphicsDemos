@@ -18,9 +18,9 @@ foreach(light IN LISTS lights)
     ${light}
     PRIVATE
     SDL2::SDL2
+    SDL2::SDL2main
     options::options
-    # TODO(Hussein): replace it with Assimp::Assimp
-    ${Assimp_LIBRARY}
+    assimp::assimp
     gl3w::gl3w
   )
 endforeach()

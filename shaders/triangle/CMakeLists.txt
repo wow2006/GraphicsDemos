@@ -15,9 +15,10 @@ foreach(demo IN LISTS demos)
     ${demo}
     PRIVATE
     SDL2::SDL2
+    SDL2::SDL2main
     options::options
     gl3w::gl3w
-    fmt::fmt
+    fmt::fmt-header-only
   )
 endforeach()
 

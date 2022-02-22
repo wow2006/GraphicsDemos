@@ -1,9 +1,10 @@
 // This is an open source non-commercial project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 // STL
-#include <optional>
 #include <cstdlib>
 #include <iostream>
+#include <optional>
+#include <string>
 #include <string_view>
 // SDL
 #include <SDL2/SDL.h>
@@ -21,7 +22,7 @@ static auto parseProgramOptions(int argc, char** argv)
   );
 }
 
-auto main(int argc, char *argv[]) -> int {
+int main(int argc, char *argv[]) {
   if(SDL_Init(SDL_INIT_VIDEO) != 0) {
     std::cerr << "Can not initialize SDL2\n";
     return EXIT_FAILURE;

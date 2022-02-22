@@ -10,6 +10,7 @@ target_link_libraries(
   simpleWindowSDL
   PRIVATE
   SDL2::SDL2
+  $<$<CXX_COMPILER_ID:MSVC>:SDL2::SDL2main>
   options::options
 )
 
