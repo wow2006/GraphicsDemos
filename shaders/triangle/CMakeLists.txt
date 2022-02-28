@@ -2,7 +2,7 @@ find_package(fmt REQUIRED)
 
 set(demos
   triangle450
-  triangle450UseUinform
+# triangle450UseUinform
 )
 
 foreach(demo IN LISTS demos)
@@ -17,7 +17,7 @@ foreach(demo IN LISTS demos)
     SDL2::SDL2
     SDL2::SDL2main
     options::options
-    gl3w::gl3w
+    glbinding::glbinding
     fmt::fmt-header-only
   )
 endforeach()

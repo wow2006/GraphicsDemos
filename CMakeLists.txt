@@ -20,4 +20,3 @@ endif()
 add_subdirectory(window)
 add_subdirectory(opengl)
 add_subdirectory(shaders)
-

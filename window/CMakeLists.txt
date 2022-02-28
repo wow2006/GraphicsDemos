@@ -90,4 +90,3 @@ if(WIN32 AND ENABLE_WIN32)
     options::options
   )
 endif()
-

@@ -36,7 +36,7 @@ foreach(sample IN LISTS samples)
     SDL2::SDL2
     SDL2::SDL2main
     options::options
-    gl3w::gl3w
+    glbinding::glbinding
     glm::glm
   )
 
