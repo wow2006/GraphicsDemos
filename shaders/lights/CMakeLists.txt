@@ -21,7 +21,7 @@ foreach(light IN LISTS lights)
     SDL2::SDL2main
     options::options
     assimp::assimp
-    gl3w::gl3w
+    glbinding::glbinding
   )
 endforeach()
 

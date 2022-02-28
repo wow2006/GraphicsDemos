@@ -4,11 +4,11 @@
 #include <vector>
 #include <cstdlib>
 #include <iostream>
-// GL3W
-#include <GL/gl3w.h>
+// glbinding
+#include <glbinding/gl/gl.h>
+#include <glbinding/glbinding.h>
 // SDL2
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_opengl.h>
 // GLM
 #include <glm/vec3.hpp>
 #include <glm/matrix.hpp>
@@ -18,6 +18,8 @@
 #include <assimp/scene.h>
 //#include <assimp/Defines.h>
 #include <assimp/Importer.hpp>
+
+using namespace gl;
 
 enum GL3D { SUCCESS = 0 };
 enum class ShaderResult : std::uint32_t { FAILURE = std::numeric_limits<std::uint32_t>::max() };
@@ -38,7 +40,7 @@ static void DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity
     return;
   }
 
-  std::cout << source << " : " << message << '\n';
+  std::cout << message << '\n';
 }
 
 static const char *vertexShaderSource = R"GLSL(
@@ -163,7 +165,7 @@ static auto LoadFile(const std::string &fileName) -> Scene {
 static auto checkShaderCompilation(GLuint shader) -> bool {
   GLint compiled;
   glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
-  if(compiled != GL_TRUE) {
+  if(compiled != 1) {
     GLsizei log_length = 0;
     GLchar message[1024];
     glGetShaderInfoLog(shader, 1024, &log_length, message);
@@ -187,7 +189,7 @@ static auto createShader(GLenum shaderType, const char *shaderSource) -> GLuint 
 static auto checkProgramLinkage(GLuint program) -> bool {
   GLint program_linked;
   glGetProgramiv(program, GL_LINK_STATUS, &program_linked);
-  if(program_linked != GL_TRUE) {
+  if(program_linked != 1) {
     GLsizei log_length = 0;
     GLchar message[1024];
     glGetProgramInfoLog(program, 1024, &log_length, message);
@@ -297,10 +299,7 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  if(gl3wInit() != GL3D::SUCCESS) {
-    std::cerr << "Can not initialize GL3W!\n";
-    return EXIT_FAILURE;
-  }
+  glbinding::initialize(nullptr, false);
 
   // Set OpenGL Debug Callback
   if(glDebugMessageCallback) {

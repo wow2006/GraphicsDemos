@@ -11,11 +11,13 @@
 // GLM
 #include <glm/vec4.hpp>
 #include <glm/matrix.hpp>
-// GL3W
-#include <GL/gl3w.h>
+// glbinding
+#include <glbinding/gl/gl.h>
+#include <glbinding/glbinding.h>
 // SDL
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_opengl.h>
+
+using namespace gl;
 
 [[maybe_unused]] static constexpr auto GL3D_SUCCESS       = 0;
 
@@ -40,7 +42,7 @@ static void DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity
     return;
   }
 
-  std::cout << source << " : " << message << '\n';
+  std::cout << message << '\n';
 }
 
 static auto parseProgramOptions(int argc, char **argv) -> std::optional<std::pair<int, int>> {
@@ -54,7 +56,7 @@ static auto parseProgramOptions(int argc, char **argv) -> std::optional<std::pai
 static auto checkShaderCompilation(GLuint shader) -> bool {
   GLint compiled;
   glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
-  if(compiled != GL_TRUE) {
+  if(compiled != 1) {
     GLsizei log_length = 0;
     GLchar message[1024];
     glGetShaderInfoLog(shader, 1024, &log_length, message);
@@ -78,7 +80,7 @@ static auto createShader(GLenum shaderType, const char *shaderSource) -> GLuint 
 static auto checkProgramLinkage(GLuint program) -> bool {
   GLint program_linked;
   glGetProgramiv(program, GL_LINK_STATUS, &program_linked);
-  if(program_linked != GL_TRUE) {
+  if(program_linked != 1) {
     GLsizei log_length = 0;
     GLchar message[1024];
     glGetProgramInfoLog(program, 1024, &log_length, message);
@@ -143,10 +145,7 @@ auto main(int argc, char *argv[]) -> int {
   // Enable vsync
   SDL_GL_SetSwapInterval(SDL_SWAP_SYNCHRONIZED);
 
-  if(gl3wInit() != GL3D_SUCCESS) {
-    std::cerr << "Can not initialize GL3W!\n";
-    return EXIT_FAILURE;
-  }
+  glbinding::initialize(nullptr, false);
 
   // Set OpenGL Debug Callback
   if(glDebugMessageCallback) {

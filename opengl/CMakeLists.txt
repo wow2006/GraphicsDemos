@@ -1,8 +1,8 @@
 # ${CMAKE_SOURCE_DIR}/window/CMakeLists.txt
-find_package(SDL2   REQUIRED)
+find_package(SDL2      REQUIRED)
 set(OpenGL_GL_PREFERENCE "GLVND")
-find_package(OpenGL REQUIRED)
-find_package(gl3w   REQUIRED)
+find_package(OpenGL    REQUIRED)
+find_package(glbinding REQUIRED)
 
 if(UNIX AND ENABLE_X11)
   find_package(X11 REQUIRED)
@@ -51,7 +51,7 @@ set(
   demos
   fixedPipelineOpenGLSDL
   programmablePipelineOpenGLSDL
-  programmablePipelineGl3wSDL
+  programmablePipelineGlBindingSDL
   programmablePipelineSDL2EGL
 )
 
@@ -65,7 +65,7 @@ foreach(demo IN LISTS demos)
     ${demo}
     PRIVATE
     OpenGL::GL
-    gl3w::gl3w
+    glbinding::glbinding
     SDL2::SDL2
     SDL2::SDL2main
     options::options

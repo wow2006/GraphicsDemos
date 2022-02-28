@@ -8,16 +8,23 @@
 // FMT
 #include <fmt/color.h>
 #include <fmt/format.h>
-// GL3W
-#include <GL/gl3w.h>
+// glbinding
+#include <glbinding/gl/gl.h>
+#include <glbinding/glbinding.h>
 // SDL2
 #include <SDL2/SDL.h>
+
+using namespace gl;
 
 enum GL3D { SUCCESS = 0 };
 enum class SDL_GL : int { ADAPTIVE_VSYNC = -1, IMMEDIATE = 0, SYNCHRONIZED = 1 };
 constexpr auto gTitle = "Scene";
 constexpr auto gWidth = 640U;
 constexpr auto gHeight = 480U;
+constexpr auto gMessageLength = 1024U;
+constexpr auto gMajorVersion = 4;
+constexpr auto gMinorVersion = 5;
+inline const bool gDebugOpenGL = std::getenv("DEBUG_OPENGL") != nullptr;
 constexpr auto SDL_SUCCESS = 0;
 
 inline auto readTextFile(const std::string& fileName) -> std::string {
@@ -47,7 +54,7 @@ static void DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity
   //  return;
   //}
 
-  fmt::print(fg(fmt::color::red), "Error: {0} - {1}\n", source, message);
+  fmt::print(fg(fmt::color::red), "Error: {0} - {1}\n", static_cast<int>(source), message);
 }
 
 class Engine final {
@@ -58,13 +65,13 @@ public:
     }
 
     // Enable Debug OpenGL
-    int contextFlags;
+    int contextFlags = 0;
     SDL_GL_GetAttribute(SDL_GL_CONTEXT_FLAGS, &contextFlags);
     contextFlags |= SDL_GL_CONTEXT_DEBUG_FLAG;
     // OpenGL 4.5 Core Profile
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, contextFlags);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, gMajorVersion);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, gMinorVersion);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
     m_pWindow = SDL_CreateWindow(gTitle, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, gWidth, gHeight, SDL_WINDOW_OPENGL);
@@ -77,12 +84,10 @@ public:
       throw std::runtime_error(fmt::format("Can not create context \"{}\"", SDL_GetError()));
     }
 
-    if(gl3wInit() != GL3D::SUCCESS) {
-      throw std::runtime_error("Can not initialize GL3W!");
-    }
+    glbinding::initialize(nullptr, false);
 
     // Set OpenGL Debug Callback
-    if(glDebugMessageCallback) {
+    if(gDebugOpenGL) {
       std::cout << "Debug is enabled\n";
       glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
       glDebugMessageCallback(DebugCallback, nullptr);
@@ -96,7 +101,7 @@ public:
 
   static GLuint CreateProgramFromShader(const std::string& shaderName, GLenum shaderType) {
     const auto shaderSource = readTextFile(shaderName);
-    const auto pShaderSource = shaderSource.data();
+    const auto *pShaderSource = shaderSource.data();
     GLuint shader = glCreateShader(shaderType);
     glShaderSource(shader, 1, &pShaderSource, nullptr);
     GLuint program = glCreateProgram();
@@ -105,13 +110,13 @@ public:
     glLinkProgram(program);
     glDeleteShader(shader);
 
-    GLint program_linked;
+    GLint program_linked = 0;
     glGetProgramiv(program, GL_LINK_STATUS, &program_linked);
-    if (program_linked != GL_TRUE) {
+    if (program_linked != 1) {
         GLsizei log_length = 0;
-        GLchar message[1024];
-        glGetProgramInfoLog(program, 1024, &log_length, message);
-        throw std::runtime_error(message);
+        std::array<GLchar, gMessageLength> message{};
+        glGetProgramInfoLog(program, gMessageLength, &log_length, message.data());
+        throw std::runtime_error(message.data());
     }
     return program;
   }
@@ -131,11 +136,11 @@ public:
     glBindVertexArray(mVAO);
   }
 
-  void draw() {
+  void draw() const {
     bool bRunning = true;
     while(bRunning) {
       SDL_Event event;
-      while(SDL_PollEvent(&event)) {
+      while(SDL_PollEvent(&event) != 0) {
         if(event.type == SDL_QUIT) {
           bRunning = false;
         }
@@ -157,13 +162,14 @@ public:
   }
 
   SDL_Window *m_pWindow = nullptr;
-  SDL_GLContext mContext;
-  GLuint vsProgram, fsProgram;
+  SDL_GLContext mContext = nullptr;
+  GLuint vsProgram= 0;
+  GLuint fsProgram = 0;
   GLuint mVAO = 0;
   GLuint mProgram = 0;
 };
 
-int main(int argc, char *argv[]) {
+int main([[maybe_unused]] int argc, [[maybe_unused]] char *argv[]) {
   try {
     Engine engine;
     engine.initialize();
