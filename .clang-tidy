@@ -1,5 +1,17 @@
 ---
-Checks:          'portability-*,performance-*,readability-*,cppcoreguidelines-*,modernize-*,clang-analyzer-*,-cppcoreguidelines-pro-type-union-access,-modernize-use-trailing-return-type'
+Checks:
+'
+portability-*,
+performance-*,
+readability-*,
+cppcoreguidelines-*,
+modernize-*,
+clang-analyzer-*,
+-cppcoreguidelines-pro-type-union-access,
+-modernize-use-trailing-return-type,
+-cppcoreguidelines-pro-bounds-array-to-pointer-decay
+'
+
 HeaderFilterRegex: '.*'
 AnalyzeTemporaryDtors: false
 FormatStyle:     none
