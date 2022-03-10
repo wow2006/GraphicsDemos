@@ -3,10 +3,12 @@
 #include <chrono>
 #include <vector>
 #include <cstdlib>
-#include <iostream>
 // glbinding
 #include <glbinding/gl/gl.h>
 #include <glbinding/glbinding.h>
+// fmt
+#include <fmt/color.h>
+#include <fmt/printf.h>
 // SDL2
 #include <SDL2/SDL.h>
 // GLM
@@ -25,6 +27,17 @@ enum class ShaderResult : std::uint32_t { FAILURE = std::numeric_limits<std::uin
 enum class ProgramResult : std::uint32_t { FAILURE = std::numeric_limits<std::uint32_t>::max() };
 enum class SDL_GL : int { ADAPTIVE_VSYNC = -1, IMMEDIATE = 0, SYNCHRONIZED = 1 };
 
+enum class TimerType { CPU, GPU };
+constexpr inline auto gTitle              = "Scene";
+constexpr inline auto gWidth              = 640U;
+constexpr inline auto gHeight             = 480U;
+constexpr inline auto gMassageLength      = 1024U;
+constexpr inline auto gMilisecond         = 1'000.F;
+constexpr inline auto gNanosecond         = 1'000'000;
+constexpr inline auto SDL_SUCCESS         = 0;
+constexpr inline auto gOpenGLMinorVersion = 4;
+constexpr inline auto gOpenGLMajorVersion = 5;
+
 static void DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const GLvoid *pUserParam) {
   (void)type;
   (void)id;
@@ -39,9 +52,10 @@ static void DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity
     return;
   }
 
-  std::cout << message << '\n';
+  fmt::print("{}\n", message);
 }
 
+// NOLINTNEXTLINE
 static const char *vertexShaderSource = R"GLSL(
 #version 450 core
 
@@ -54,6 +68,7 @@ void main() {
 }
 )GLSL";
 
+// NOLINTNEXTLINE
 static const char *fragmentShaderSource = R"GLSL(
 #version 450 core
 
@@ -65,11 +80,11 @@ void main() {
 )GLSL";
 
 struct Model {
-  GLuint vao;
-  GLuint vbo[3];
+  GLuint vao = 0;
+  GLuint vbo[3] = {}; // NOLINT
   void draw() const {
     glBindVertexArray(vao);
-    { glDrawArrays(GL_TRIANGLES, 0, mVertices.size() / 3); }
+    { glDrawArrays(GL_TRIANGLES, 0, static_cast<int>(mVertices.size() / 3)); }
     glBindVertexArray(0);
   }
   std::vector<float> mVertices;
@@ -104,39 +119,39 @@ static auto LoadMesh(const aiMesh *pMesh) -> Model {
   Model model;
   model.mVertices.resize(pMesh->mNumVertices * 3);
 
-  glm::vec3 *pVertex = reinterpret_cast<glm::vec3 *>(model.mVertices.data());
+  auto *pVertex = reinterpret_cast<glm::vec3 *>(model.mVertices.data()); // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
   for(auto i = 0U; i < pMesh->mNumVertices; i++) {
-    const aiVector3D *pPos = &(pMesh->mVertices[i]);
+    const aiVector3D *pPos = &(pMesh->mVertices[i]); // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     *pVertex = {pPos->x, pPos->y, pPos->z};
-    ++pVertex;
+    ++pVertex; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   }
   return model;
 }
 
 static auto LoadFile(const std::string &fileName) -> Scene {
   Assimp::Importer importer;
-  const auto pScene = importer.ReadFile(fileName, 0);
+  const auto *pScene = importer.ReadFile(fileName, 0);
   if(pScene == nullptr) {
-    std::cerr << "Can not load \"" << fileName << "\"!\n";
+    fmt::print(stderr, fg(fmt::color::red), "Can not load \"{}\"\n", fileName);
     std::exit(EXIT_FAILURE);
   }
   Scene scene;
   scene.mModels.reserve(pScene->mNumMeshes);
   for(auto i = 0U; i < pScene->mNumMeshes; ++i) {
-    const auto &mesh = pScene->mMeshes[i];
+    const auto &mesh = pScene->mMeshes[i]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     scene.mModels.push_back(LoadMesh(mesh));
   }
   return scene;
 }
 
 static auto checkShaderCompilation(GLuint shader) -> bool {
-  GLint compiled;
+  GLint compiled = 0;
   glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
   if(compiled != 1) {
     GLsizei log_length = 0;
-    GLchar message[1024];
-    glGetShaderInfoLog(shader, 1024, &log_length, message);
-    std::cerr << "ERROR: " << message << '\n';
+    std::array<GLchar, gMassageLength> message = {};
+    glGetShaderInfoLog(shader, gMassageLength, &log_length, message.data());
+    fmt::print(stderr, fg(fmt::color::red), "{}\n", message.data());
     return false;
   }
   return true;
@@ -144,7 +159,7 @@ static auto checkShaderCompilation(GLuint shader) -> bool {
 
 static auto createShader(GLenum shaderType, const char *shaderSource) -> GLuint {
   auto shader = glCreateShader(shaderType);
-  auto vertexShaderSourcePtr = &shaderSource;
+  auto *vertexShaderSourcePtr = &shaderSource;
   glShaderSource(shader, 1, vertexShaderSourcePtr, nullptr);
   glCompileShader(shader);
   if(!checkShaderCompilation(shader)) {
@@ -154,13 +169,13 @@ static auto createShader(GLenum shaderType, const char *shaderSource) -> GLuint 
 }
 
 static auto checkProgramLinkage(GLuint program) -> bool {
-  GLint program_linked;
+  GLint program_linked = 0;
   glGetProgramiv(program, GL_LINK_STATUS, &program_linked);
   if(program_linked != 1) {
     GLsizei log_length = 0;
-    GLchar message[1024];
-    glGetProgramInfoLog(program, 1024, &log_length, message);
-    std::cerr << "ERROR: " << message << '\n';
+    std::array<GLchar, gMassageLength> message = {};
+    glGetProgramInfoLog(program, gMassageLength, &log_length, message.data());
+    fmt::print(stderr, fg(fmt::color::red), "{}\n", message.data());
     return false;
   }
   return true;
@@ -177,8 +192,6 @@ static auto createProgram(GLuint vertexShader, GLuint fragmentShader) -> GLuint 
 
   return program;
 }
-
-enum class TimerType { CPU, GPU };
 
 template<TimerType Type>
 struct Timer;
@@ -204,7 +217,7 @@ private:
 
 template<>
 struct Timer<TimerType::GPU> {
-  Timer() { glGenQueries(2, mQueries); }
+  Timer() noexcept { glGenQueries(static_cast<int>(mQueries.size()), mQueries.data()); }
 
   void start() { glQueryCounter(mQueries[0], GL_TIMESTAMP); }
 
@@ -212,16 +225,17 @@ struct Timer<TimerType::GPU> {
     glQueryCounter(mQueries[1], GL_TIMESTAMP);
     // wait until the results are available
     int stopTimerAvailable = 0;
-    while(!stopTimerAvailable) {
+    while(stopTimerAvailable != 0) {
       glGetQueryObjectiv(mQueries[1], GL_QUERY_RESULT_AVAILABLE, &stopTimerAvailable);
     }
 
-    GLuint64 startTime, stopTime;
+    GLuint64 startTime = 0;
+    GLuint64 stopTime  = 0;
     // get query results
     glGetQueryObjectui64v(mQueries[0], GL_QUERY_RESULT, &startTime);
     glGetQueryObjectui64v(mQueries[1], GL_QUERY_RESULT, &stopTime);
 
-    return static_cast<long>(stopTime - startTime) / 1000000;
+    return static_cast<long>(stopTime - startTime) / gNanosecond;
   }
 
   auto stopAndRestart() -> long {
@@ -230,53 +244,45 @@ struct Timer<TimerType::GPU> {
     return time;
   }
 
-  GLuint mQueries[2];
+  std::array<GLuint, 2> mQueries = {};
 };
 
-constexpr auto gTitle = "Scene";
-constexpr auto gWidth = 640U;
-constexpr auto gHeight = 480U;
-constexpr auto SDL_SUCCESS = 0;
-
-int main(int argc, char *argv[]) {
+int main([[maybe_unused]] int argc, [[maybe_unused]] char *argv[]) {
   if(SDL_Init(SDL_INIT_VIDEO) != SDL_SUCCESS) {
-    std::cerr << "Can not initialize \"" << SDL_GetError() << "\"\n";
+    fmt::print(stderr, fg(fmt::color::red), "Can not initialize \"{}\"\n", SDL_GetError());
     return EXIT_FAILURE;
   }
 
   // Enable Debug OpenGL
-  int contextFlags;
+  int contextFlags = {};
   SDL_GL_GetAttribute(SDL_GL_CONTEXT_FLAGS, &contextFlags);
   contextFlags |= SDL_GL_CONTEXT_DEBUG_FLAG;
   // OpenGL 3.3 Core Profile
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, contextFlags);
-  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, gOpenGLMinorVersion);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, gOpenGLMajorVersion);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
-  auto pWindow = SDL_CreateWindow(gTitle, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, gWidth, gHeight, SDL_WINDOW_OPENGL);
+  auto *pWindow = SDL_CreateWindow(gTitle, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, gWidth, gHeight, SDL_WINDOW_OPENGL);
   if(pWindow == nullptr) {
-    std::cerr << "Can not create window \"" << SDL_GetError() << "\"\n";
+    fmt::print(stderr, fg(fmt::color::red), "Can not create a window \"{}\"\n", SDL_GetError());
     return EXIT_FAILURE;
   }
 
-  auto context = SDL_GL_CreateContext(pWindow);
+  const auto context = SDL_GL_CreateContext(pWindow); // NOLINT
   if(context == nullptr) {
-    std::cerr << "Can not create context \"" << SDL_GetError() << "\"\n";
+    fmt::print(stderr, fg(fmt::color::red), "Can not create a context \"{}\"\n", SDL_GetError());
     return EXIT_FAILURE;
   }
 
   glbinding::initialize(nullptr, false);
 
   // Set OpenGL Debug Callback
-  if(glDebugMessageCallback) {
-    std::cout << "Debug is enabled\n";
-    glDebugMessageCallback(DebugCallback, nullptr);
-  }
+  glDebugMessageCallback(DebugCallback, nullptr);
 
   // Enable Immediate update
   if(SDL_GL_SetSwapInterval(static_cast<int>(SDL_GL::SYNCHRONIZED)) != SDL_SUCCESS) {
-    std::cerr << "Can not set Immediate update!\n";
+    fmt::print(fg(fmt::color::yellow), "Can not set Immediate update!\n");
   }
 
   Scene scene = LoadFile("sphere.obj");
@@ -297,7 +303,7 @@ int main(int argc, char *argv[]) {
 
   const auto ratio = static_cast<float>(gWidth) / static_cast<float>(gHeight);
   const auto prespective = glm::perspective(45.F, ratio, 0.001F, 1000.F);
-  const auto view = glm::lookAt(glm::vec3{5, 5, 5}, glm::vec3{}, glm::vec3{0, 1, 0});
+  const auto view = glm::lookAt(glm::vec3{0, 0,-10}, glm::vec3{}, glm::vec3{0, 1, 0});
 
   const auto MVP = prespective * view;
 
@@ -329,12 +335,12 @@ int main(int argc, char *argv[]) {
 
     SDL_GL_SwapWindow(pWindow);
 
-    const float cpuTime = static_cast<float>(cpuTimer.stop());
-    const float gpuTime = static_cast<float>(gpuTimer.stop());
-    printf("\rCPU: FPS: %.3F, Time: %.3F, GPU: FPS: %.3F, Time: %.3F",
-           static_cast<double>(1000.F / cpuTime),
+    const auto cpuTime = static_cast<float>(cpuTimer.stop());
+    const auto gpuTime = static_cast<float>(gpuTimer.stop());
+    fmt::print("\rCPU: FPS: {:.2f}, Time: {:.2f}, GPU: FPS: {:.2f}, Time: {:.2f}",
+           static_cast<double>(gMilisecond / cpuTime),
            static_cast<double>(cpuTime),
-           static_cast<double>(1000.F / gpuTime),
+           static_cast<double>(gMilisecond / gpuTime),
            static_cast<double>(gpuTime));
   }
 
