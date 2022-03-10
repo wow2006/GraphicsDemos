@@ -87,7 +87,7 @@ void main() {
 
 struct Model {
   GLuint vao = 0;
-  GLuint vbo[3] = {}; // NOLINT
+  GLuint vbo = 0; // NOLINT
   void draw(GLenum type = GL_TRIANGLES) const {
     glBindVertexArray(vao);
     { glDrawArrays(type, 0, static_cast<int>(mVertices.size() / 3)); }
@@ -101,14 +101,15 @@ struct Scene {
 
   void initialize() {
     for(auto &model : mModels) {
-      glGenVertexArrays(1, &model.vao);
+      glCreateVertexArrays(1, &model.vao);
       glBindVertexArray(model.vao);
       {
-        glCreateBuffers(2, model.vbo);
-        glBindBuffer(GL_ARRAY_BUFFER, model.vbo[0]);
-        glBufferData(GL_ARRAY_BUFFER, model.mVertices.size() * 3 * sizeof(float), model.mVertices.data(), GL_STATIC_DRAW);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, nullptr);
+        glCreateBuffers(1, &model.vbo);
+        glNamedBufferStorage(model.vbo, sizeof(float) * model.mVertices.size(), model.mVertices.data(), GL_NONE_BIT);
+        glVertexArrayVertexBuffer(model.vao,  0, model.vbo, 0, sizeof(glm::vec3));
+        glEnableVertexArrayAttrib(model.vao,  0);
+        glVertexArrayAttribFormat(model.vao,  0, 3, GL_FLOAT, GL_FALSE, 0);
+        glVertexArrayAttribBinding(model.vao, 0, 0);
       }
       glBindVertexArray(0);
     }
