@@ -1,0 +1,29 @@
+name: CMake Build Matrix
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: submodule
+      run: git submodule update --init
+    - name: install dependencies
+      run: |
+           sudo apt-get update
+           sudo apt-get install -yq \
+           build-essential          \
+           cmake                    \
+           ninja-build              \
+           libglbinding-dev         \
+           libglm-dev               \
+           libfmt-dev               \
+           libassimp-dev            \
+           libsdl2-dev
+    - name: create build dir
+      run: mkdir build
+    - name: cmake configuration
+      run: cmake -G Ninja -Bbuild -H.
+    - name: build
+      run: cd build && ninja
